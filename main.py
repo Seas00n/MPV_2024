@@ -27,7 +27,7 @@ def main():
 
 
 
-    
+
     lcm_send_handler.publish("HIGH_TO_MIDDLE",lcm_msg_send.encode())
     lcm_receive_handler.handle()
 
