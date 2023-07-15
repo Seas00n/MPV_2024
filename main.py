@@ -1,16 +1,34 @@
 import numpy as np
+from Motor.motor import *
+from lcm_msg.lcm_init import *
+from lcm_msg.mvp_r import *
+from lcm_msg.mvp_t import *
 
-# mode0: realtime
-# mode1: simulation
-# mode2:
-running_mode = 0
+
+
+Knee = Motor()
+Ankle = Motor()
+lcm_msg_send, lcm_msg_receive, lcm_send_handler, lcm_receive_handler = lcm_initialize()
+def bridge_handler(channel, data):
+    msg = msg_r.decode(data)
+    Knee.pos_actual = msg.knee_position_actual
+    Ankle.pos_actual = msg.ankle_position_actual
+    Knee.vel_actual = msg.knee_velocity_actual
+    Ankle.vel_actual = msg.ankle_velocity_actual
+    Knee.cur_actual = msg.knee_torque_actual
+    Ankle.cur_actual = msg.ankle_torque_actual
+    #print("Received message on channel \"%s\"" % channel)
 
 def main():
-    if running_mode == 0:
-        imu_data_buf = []
-        six_force_buf = []
-        env_type_buf = []
-        env_fea_buf = []
-    if running_mode == 1:
-        imu_data_buf = []
+    lcm_subscriber = lcm_receive_handler.subscribe("MIDDLE_TO_HIGH", bridge_handler)
+
+
+
+
+
+
+    
+    lcm_send_handler.publish("HIGH_TO_MIDDLE",lcm_msg_send.encode())
+    lcm_receive_handler.handle()
+
 

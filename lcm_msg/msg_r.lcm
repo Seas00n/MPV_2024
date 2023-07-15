@@ -1,0 +1,13 @@
+package mvp_r;
+struct msg_r
+{
+    float knee_position_actual;
+    float ankle_position_actual;
+    float knee_velocity_actual;
+    float ankle_velocity_actual;
+    float knee_torque_actual;
+    float ankle_torque_actual;
+    byte Error_Code;
+    float knee_temperature;
+    float ankle_temperature;
+}

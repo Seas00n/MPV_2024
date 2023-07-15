@@ -1,0 +1,15 @@
+package mvp_t;
+
+struct msg_t
+{
+    float knee_position_desired;
+    float ankle_position_desired;
+    float knee_velocity_desired;
+    float ankle_velocity_desired;
+    float knee_torque_desired;
+    float ankle_torque_desired;
+    byte Mode;
+    float Kp;
+    float Kd;
+    float Angle_eq;
+}
