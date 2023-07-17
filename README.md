@@ -12,6 +12,12 @@
 ### 环境参数调节
 
 
+## 传感器
+### IMU:IM948
+9轴蓝牙通信，参考仓库 https://github.com/Seas00n/IM948
+### Tof Camera: Flex2
+每秒15帧，LCM通信实测不丢包，参考仓库 https://github.com/Seas00n/RoyaleFlex2_CPP
+
 
 ## LCM 通信
 上层规划和`ros_ctrl`节点采用LCM通信，消息格式如下

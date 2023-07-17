@@ -1,0 +1,8 @@
+package pcd_lcm;
+
+struct pcd_xyz
+{
+    int16_t pcd_x[38528];
+    int16_t pcd_y[38528];
+    int16_t pcd_z[38528];
+}
