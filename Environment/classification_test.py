@@ -17,7 +17,7 @@ def pcd_handler(channel, data):
     pcd_data[:, 1] = np.array(msg.pcd_y)
     pcd_data[:, 2] = np.array(msg.pcd_z)
     pcd_data = (pcd_data - 10000) / 300.0  # int16_t to float
-    print(np.size(pcd_data,0))
+
 
 env = Environment()
 
@@ -30,8 +30,8 @@ if __name__ == "__main__":
         for i in range(totaltimestep):
             pcd_lc.handle()
             imu_angle = [imu_buffer[6], imu_buffer[7], imu_buffer[8]]
-            img, pcd_2d = env.pcd_to_binary_image(pcd_data, imu_angle)
-            cv2.imshow("binaryimage",img)
+            env.pcd_to_binary_image(pcd_data, imu_angle)
+            cv2.imshow("binaryimage",env.img_binary)
             key = cv2.waitKey(1)
             if key == ord('q'):
                 break
