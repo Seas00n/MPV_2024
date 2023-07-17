@@ -6,6 +6,9 @@ from lcm_msg.lcm_init import *
 import lcm
 import time
 from Environment import *
+import PIL
+import os
+
 totaltimestep = 1000
 pcd_data = np.zeros((38528, 3))
 
@@ -21,19 +24,34 @@ def pcd_handler(channel, data):
 
 env = Environment()
 
+imu_buffer_path = "../Sensor/IM948/imu_buffer.npy"
+data_save_path = "/media/yuxuan/Ubuntu 20.0/IMG_TEST/TEST5不能/"
+img_list = os.listdir(data_save_path)
+for f in img_list:
+    os.remove(data_save_path + f)
+
 if __name__ == "__main__":
-    imu_buffer = np.memmap("../Sensor/IM948/imu_buffer.npy", dtype='float32', mode='r',
+    imu_buffer = np.memmap(imu_buffer_path, dtype='float32', mode='r',
                            shape=(12,))
     pcd_msg, pcd_lc = pcd_lcm_initialize()
     subscriber = pcd_lc.subscribe("PCD_DATA", pcd_handler)
+    imu_data = np.zeros((13,))
+    t0 = time.time()
     try:
         for i in range(totaltimestep):
             pcd_lc.handle()
-            imu_angle = [imu_buffer[6], imu_buffer[7], imu_buffer[8]]
-            env.pcd_to_binary_image(pcd_data, imu_angle)
-            cv2.imshow("binaryimage",env.img_binary)
+            env.pcd_to_binary_image(pcd_data, [imu_buffer[6], imu_buffer[7], imu_buffer[8]])
+            cv2.imshow("binaryimage", env.elegent_img())
+            img_save = PIL.Image.fromarray(env.img_binary)
+            img_save_name = data_save_path + "{}.png".format(i)
+            data_temp = np.zeros((13,))
+            data_temp[0:12] = imu_buffer
+            data_temp[12] = time.time() - t0
+            imu_data = np.vstack([imu_data, data_temp])
+            img_save.save(img_save_name, bits=1, optimize=True)
             key = cv2.waitKey(1)
             if key == ord('q'):
+                np.save(data_save_path + "imu_data.npy", imu_data)
                 break
     except KeyboardInterrupt:
         pass
