@@ -25,7 +25,7 @@ def pcd_handler(channel, data):
 env = Environment()
 
 imu_buffer_path = "../Sensor/IM948/imu_buffer.npy"
-data_save_path = "/media/yuxuan/Ubuntu 20.0/IMG_TEST/TEST5不能/"
+data_save_path = "/media/yuxuan/Ubuntu 20.0/IMG_TEST/TEST1/"
 img_list = os.listdir(data_save_path)
 for f in img_list:
     os.remove(data_save_path + f)
@@ -37,21 +37,26 @@ if __name__ == "__main__":
     subscriber = pcd_lc.subscribe("PCD_DATA", pcd_handler)
     imu_data = np.zeros((13,))
     t0 = time.time()
+    pcd_2d_list = []2
     try:
         for i in range(totaltimestep):
             pcd_lc.handle()
             env.pcd_to_binary_image(pcd_data, [imu_buffer[6], imu_buffer[7], imu_buffer[8]])
             cv2.imshow("binaryimage", env.elegent_img())
-            img_save = PIL.Image.fromarray(env.img_binary)
-            img_save_name = data_save_path + "{}.png".format(i)
+            # img_save = PIL.Image.fromarray(env.img_binary)
+            # img_save_name = data_save_path + "{}.png".format(i)
+            # img_save.save(img_save_name, bits=1, optimize=True)
+
             data_temp = np.zeros((13,))
             data_temp[0:12] = imu_buffer
             data_temp[12] = time.time() - t0
             imu_data = np.vstack([imu_data, data_temp])
-            img_save.save(img_save_name, bits=1, optimize=True)
+            # np.save(data_save_path + "{}.npy".format(i), env.pcd_2d)
+            pcd_2d_list.append(env.pcd_2d)
             key = cv2.waitKey(1)
             if key == ord('q'):
                 np.save(data_save_path + "imu_data.npy", imu_data)
+                np.save(data_save_path + "pcd_2d.npy", np.asarray(pcd_2d_list))
                 break
     except KeyboardInterrupt:
         pass

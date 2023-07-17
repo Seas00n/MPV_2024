@@ -29,11 +29,15 @@ class Environment:
         eular = imu[0:3]
         chosen_idx = np.logical_and(pcd[:, 0] < 0.05, pcd[:, 0] > 0.02, abs(pcd[:, 1]) < 2)
         pcd_new = pcd[chosen_idx, :]
-        R = Rotation.from_euler('xyz', [eular[0] - 90.0, 0, 0], degrees=True).as_matrix()
-        pcd_new = np.matmul(R, pcd_new.T)
-        pcd_new = pcd_new.T
-        chosen_y = pcd_new[:, 1]
-        chosen_z = pcd_new[:, 2]
+        # R = Rotation.from_euler('xyz', [eular[0] - 90.0, 0, 0], degrees=True).as_matrix()
+        # pcd_new = np.matmul(R, pcd_new.T)
+        # chosen_y = pcd_new[1,:].T
+        # chosen_z = pcd_new[2,:].T
+        y = pcd_new[:,1]
+        z = pcd_new[:,2]
+        theta = np.pi/180*eular[0]-np.pi/2
+        chosen_y = y*np.cos(theta)-z*np.sin(theta)
+        chosen_z = z*np.cos(theta)+y*np.sin(theta)
         self.img_binary = np.zeros((100, 100)).astype('uint8')
         if np.any(chosen_y):
             y_min = np.min(chosen_y)
