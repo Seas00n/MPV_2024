@@ -6,6 +6,7 @@ from scipy.spatial.transform import Rotation
 from Utils.IO import *
 import scipy
 from Utils.Algo import *
+from sklearn.neighbors import NearestNeighbors
 
 
 class Env_Type(Enum):
@@ -23,6 +24,7 @@ class Environment:
         self.env_type_from_nn = Env_Type.Levelground
         self.env_type_buffer = np.zeros(5, dtype=np.uint64)
         self.pcd_2d = np.zeros([0, 2])
+        self.thin_pcd_2d = np.zeros([0, 2])
         self.img_binary = np.zeros((100, 100)).astype('uint8')
 
     def pcd_to_binary_image(self, pcd, imu):
@@ -33,21 +35,22 @@ class Environment:
         # pcd_new = np.matmul(R, pcd_new.T)
         # chosen_y = pcd_new[1,:].T
         # chosen_z = pcd_new[2,:].T
-        y = pcd_new[:,1]
-        z = pcd_new[:,2]
-        theta = np.pi/180*eular[0]-np.pi/2
-        chosen_y = y*np.cos(theta)-z*np.sin(theta)
-        chosen_z = z*np.cos(theta)+y*np.sin(theta)
+        y = pcd_new[:, 1]
+        z = pcd_new[:, 2]
+        theta = np.pi / 180 * eular[0] - np.pi / 2
+        chosen_y = y * np.cos(theta) - z * np.sin(theta)
+        chosen_z = z * np.cos(theta) + y * np.sin(theta)
         self.img_binary = np.zeros((100, 100)).astype('uint8')
         if np.any(chosen_y):
-            y_min = np.min(chosen_y)
-            z_min = np.min(chosen_z)
+
             self.pcd_2d = np.zeros([len(chosen_y), 2])
             self.pcd_2d[:, 0] = chosen_z
             self.pcd_2d[:, 1] = chosen_y
+            y_min = np.min(chosen_y)
+            z_min = np.min(chosen_z)
+            y_max = np.max(chosen_y)
             chosen_y = chosen_y - y_min
             chosen_z = chosen_z - z_min
-            y_max = np.max(chosen_y)
             chosen_y = chosen_y + (1 - y_max)  # align with 1
             chosen_idx = np.logical_and(abs(chosen_y) < 1, abs(chosen_z) < 1)
             chosen_y = chosen_y[chosen_idx]
@@ -63,6 +66,27 @@ class Environment:
         else:
             self.pcd_2d = np.zeros([len(chosen_y), 2])
 
+    def pcd2d_to_binary_image(self):
+        # self.img_binary = np.zeros((100, 100)).astype('uint8')
+        chosen_y = self.thin_pcd_2d[:, 0]
+        chosen_z = self.thin_pcd_2d[:, 1]
+        y_min = np.min(self.pcd_2d[:, 0])
+        z_min = np.min(self.pcd_2d[:, 1])
+        y_max = np.max(self.pcd_2d[:, 0])
+        chosen_y = chosen_y - y_min
+        chosen_z = chosen_z - z_min
+        chosen_y = chosen_y + (1 - y_max)  # align with 1
+        chosen_idx = np.logical_and(abs(chosen_y) < 1, abs(chosen_z) < 1)
+        chosen_y = chosen_y[chosen_idx]
+        chosen_z = chosen_z[chosen_idx]
+        chosen_idx = np.logical_and(abs(chosen_y) > 0.01, abs(chosen_z) > 0.01)
+        chosen_y = chosen_y[chosen_idx]
+        chosen_z = chosen_z[chosen_idx]
+        pixel_y = np.floor(100 * chosen_y).astype('int')
+        pixel_z = np.floor(100 * chosen_z).astype('int')
+        for i in range(np.size(pixel_y)):
+            self.img_binary[pixel_y[i], pixel_z[i]] = 255
+
     def classification_from_img(self):
         img = np.asarray(self.img_binary, dtype=np.uint8).reshape(1, 1, 100, 100)
         img_torch = torch.tensor(img, dtype=torch.float)
@@ -74,8 +98,26 @@ class Environment:
         pred = scipy.stats.mode(self.env_type_buffer)[0]
         self.env_type_from_nn = Env_Type(pred)
 
-    def elegent_img(self):
-        return cv2.resize(self.img_binary, (500, 500))
+    def elegant_img(self):
+        img = cv2.resize(self.img_binary, (500, 500))
+
+    def thin(self):
+        nb1 = NearestNeighbors(n_neighbors=20, algorithm='auto')
+        nb1.fit(self.pcd_2d)  # pcd_2d作为训练集
+        dis, idx = nb1.kneighbors(self.pcd_2d)
+        x = self.pcd_2d[idx, :][:, :, 0]
+        y = self.pcd_2d[idx, :][:, :, 1]
+        thin_edge = np.array([np.mean(x, 1), np.mean(y, 1)]).T
+        X = thin_edge[:, 0][thin_edge[:, 1] > 0.1].reshape(-1, 1)
+        y = thin_edge[:, 1][thin_edge[:, 1] > 0.1].reshape(-1, 1)
+        ymax = max(y)
+        idx_remove = np.where(ymax - y < 0.02)[0]
+        if len(idx_remove) < 10:
+            print('remove')
+            X = np.delete(X, idx_remove).reshape(-1, 1)
+            y = np.delete(y, idx_remove).reshape(-1, 1)
+        self.thin_pcd_2d = np.concatenate((X, y), 1)
+        self.pcd2d_to_binary_image()
 
     def get_feature_ransac(self, flag):
         X = self.pcd_2d[:, 0]
@@ -119,13 +161,13 @@ class Environment:
 
         stair_high_fea_x = stair_high_x[stair_high_x - min(stair_high_x) < 0.03]
         stair_high_fea_y = stair_high_y[stair_high_x - min(stair_high_x) < 0.03]
-        stair_high_fea = np.concatenate((stair_high_fea_x,stair_high_fea_y),1)
+        stair_high_fea = np.concatenate((stair_high_fea_x, stair_high_fea_y), 1)
 
-        if len(vertical_idx3)<1000:
+        if len(vertical_idx3) < 1000:
             fea = None
         else:
             vertical_fea_x = X1[vertical_idx3]
             vertical_fea_y = Y1[vertical_idx3]
-            vertical_fea = np.concatenate((vertical_fea_x,vertical_fea_y),1)
+            vertical_fea = np.concatenate((vertical_fea_x, vertical_fea_y), 1)
 
         return stair_high_fea, vertical_fea
