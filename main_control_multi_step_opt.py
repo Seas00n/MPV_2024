@@ -32,7 +32,7 @@ np.set_printoptions(formatter={'float':'{:0.2f}'.format})
 
 ##argument parse
 parser = argparse.ArgumentParser()
-parser.add_argument('--data', '-d', type=int, default=0)  # data_source 0:real measurement; 1:real measurment on human without force sensor; 2:dataset with force sensor
+parser.add_argument('--calibrate', '-d', type=int, default=0)  # data_source 0:real measurement; 1:real measurment on human without force sensor; 2:dataset with force sensor
 parser.add_argument('--vision', '-v', type=int, default=1)
 parser.add_argument('--control_motor', '-c', type=int, default=1)
 parser.add_argument('--verbose', type=int, default=0)
@@ -59,7 +59,7 @@ k_mat = np.array([[[90, 90, 20, 20], [100, 100, 20, 20]], [[80, 80, 10, 10], [10
 b_mat = np.array([[[5, 5, 0.5, 1], [6, 6, 1, 1]], [[5, 5, 0.5, 1], [6, 6, 1, 1]], [[5, 5, 0.5, 1], [6, 6, 1, 1]],
                   [[5, 5, 0.5, 1], [6, 6, 1, 1]], [[5, 5, 0.5, 1], [6, 6, 1, 1]]])
 
-# IO.make_video('data/video_frames')
+# IO.make_video('calibrate/video_frames')
 def main():
     '''Initialize state vector'''
 
@@ -74,9 +74,9 @@ def main():
     if (data_source != 2) and (vision_flag == 1):
         pcd_buf = np.memmap('log/depth.npy', dtype='float32', mode='r', shape=(38528, 3))
     # if data_source == 2:
-    #     imu_data_mat = np.load('../data/sim_data/imu.npy')
-    #     force_mat = np.load('../data/sim_data/force.npy')
-    #     pcd_mat = scio.loadmat('../data/sim_data/pcd.mat')["pcd_data_new"].reshape(-1)
+    #     imu_data_mat = np.load('../calibrate/sim_data/imu.npy')
+    #     force_mat = np.load('../calibrate/sim_data/force.npy')
+    #     pcd_mat = scio.loadmat('../calibrate/sim_data/pcd.mat')["pcd_data_new"].reshape(-1)
     #     imu_data_buf = imu_data_mat[0, :]
     #     knee_angle_init = imu_data_buf[9]
     #     ankle_angle_init = imu_data_buf[18]
@@ -472,9 +472,9 @@ def main():
     #     else:
     #         time.sleep(8e-3)  # sleep 8 ms
     #     if i % 100 == 0:
-    #         data = {'q_qv_d_mat': q_qv_d_mat, 'q_qv_mat': q_qv_mat,
+    #         calibrate = {'q_qv_d_mat': q_qv_d_mat, 'q_qv_mat': q_qv_mat,
     #                 'q_thigh_vec': q_thigh_vec}
-    # #         np.save('results/benchtop_test_{}.npy'.format(time.time()), data)
+    # #         np.save('results/benchtop_test_{}.npy'.format(time.time()), calibrate)
     # #     # except:
     # #     #     print('-----------Main loop error!-------------')
     # # if control_motor:
@@ -764,7 +764,7 @@ if __name__ == '__main__':
 
 
 def try_control():
-    # IO.make_video('data/video_frames')
+    # IO.make_video('calibrate/video_frames')
 
     dst_RGBD = '../dataset/RGBD_out'
     dst_IMU = '../dataset/IMU_out'

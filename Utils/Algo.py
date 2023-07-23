@@ -26,7 +26,7 @@ def RANSAC(X, y, th):
     inlier_mask = ransac.inlier_mask_
     outlier_mask = np.logical_not(inlier_mask)
 
-    # Predict data of estimated models
+    # Predict calibrate of estimated models
     line_X = np.arange(X.min(), X.max(), 0.01)[:, np.newaxis]
     line_y_ransac = ransac.predict(line_X)
 

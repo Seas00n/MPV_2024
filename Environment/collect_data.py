@@ -11,21 +11,22 @@ import os
 
 totaltimestep = 1000
 pcd_data = np.zeros((38528, 3))
+pcd_data_temp = np.zeros((38528,3))
 
 
 def pcd_handler(channel, data):
-    global pcd_data
+    global pcd_data_temp
     msg = pcd_xyz.decode(data)
     pcd_data[:, 0] = np.array(msg.pcd_x)
     pcd_data[:, 1] = np.array(msg.pcd_y)
     pcd_data[:, 2] = np.array(msg.pcd_z)
-    pcd_data = (pcd_data - 10000) / 300.0  # int16_t to float
+    pcd_data_temp = (pcd_data - 10000) / 300.0  # int16_t to float
 
 
 env = Environment()
 
 imu_buffer_path = "../Sensor/IM948/imu_buffer.npy"
-data_save_path = "/media/yuxuan/Ubuntu 20.0/IMG_TEST/TEST8/"
+data_save_path = "/media/yuxuan/Ubuntu 20.0/IMG_TEST/TEST1/"
 img_list = os.listdir(data_save_path)
 for f in img_list:
     os.remove(data_save_path + f)
@@ -43,12 +44,11 @@ if __name__ == "__main__":
         for i in range(totaltimestep):
             pcd_lc.handle()
             eular_angle = [imu_buffer[6], imu_buffer[7], imu_buffer[8]]
-            env.pcd_to_binary_image(pcd_data, eular_angle)
+            env.pcd_to_binary_image(pcd_data_temp, eular_angle)
             cv2.imshow("binaryimage", env.elegant_img())
             # img_save = PIL.Image.fromarray(env.img_binary)
             # img_save_name = data_save_path + "{}.png".format(i)
             # img_save.save(img_save_name, bits=1, optimize=True)
-
             data_temp = np.zeros((13,))
             data_temp[0:12] = imu_buffer
             data_temp[12] = time.time() - t0

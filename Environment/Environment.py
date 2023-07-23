@@ -41,17 +41,22 @@ class Environment:
         chosen_y = y * np.cos(theta) - z * np.sin(theta)
         chosen_z = z * np.cos(theta) + y * np.sin(theta)
         self.img_binary = np.zeros((100, 100)).astype('uint8')
+        #######################
+        #
+        #
+        #    *******
+        #    *
+        #    *
+        # **** ----levelground y = 100
+        ########################
         if np.any(chosen_y):
-
-            self.pcd_2d = np.zeros([len(chosen_y), 2])
-            self.pcd_2d[:, 0] = chosen_z
-            self.pcd_2d[:, 1] = chosen_y
+            self.pcd_2d = np.vstack((chosen_y, chosen_z))
             y_min = np.min(chosen_y)
             z_min = np.min(chosen_z)
-            y_max = np.max(chosen_y)
             chosen_y = chosen_y - y_min
             chosen_z = chosen_z - z_min
-            chosen_y = chosen_y + (1 - y_max)  # align with 1
+            y_max = np.max(chosen_y)
+            chosen_y = chosen_y + (1 - y_max)  # align with 1(level_ground)
             chosen_idx = np.logical_and(abs(chosen_y) < 1, abs(chosen_z) < 1)
             chosen_y = chosen_y[chosen_idx]
             chosen_z = chosen_z[chosen_idx]
@@ -67,7 +72,6 @@ class Environment:
             self.pcd_2d = np.zeros([len(chosen_y), 2])
 
     def pcd2d_to_binary_image(self):
-        # self.img_binary = np.zeros((100, 100)).astype('uint8')
         chosen_y = self.thin_pcd_2d[:, 0]
         chosen_z = self.thin_pcd_2d[:, 1]
         y_min = np.min(self.pcd_2d[:, 0])
@@ -99,7 +103,17 @@ class Environment:
         self.env_type_from_nn = Env_Type(pred)
 
     def elegant_img(self):
-        img = cv2.resize(self.img_binary, (500, 500))
+        img = np.zeros((500, 500, 3)).astype('uint8')
+        img[:, :, 0] = cv2.resize(self.img_binary,(500,500))
+        img[:, :, 1] = cv2.resize(self.img_binary,(500,500))
+        img[:, :, 2] = cv2.resize(self.img_binary,(500,500))
+        img[0:10, :, 0] = np.ones((10, 500)) * 255
+        img[0:10, :, 1] = np.ones((10, 500)) * 0
+        img[0:10, :, 2] = np.ones((10, 500)) * 255
+        img[:, 0:10, 0] = np.ones((500, 10)) * 255
+        img[:, 0:10, 1] = np.ones((500, 10)) * 0
+        img[:, 0:10, 2] = np.ones((500, 10)) * 0
+        return img
 
     def thin(self):
         nb1 = NearestNeighbors(n_neighbors=20, algorithm='auto')
@@ -117,7 +131,7 @@ class Environment:
             X = np.delete(X, idx_remove).reshape(-1, 1)
             y = np.delete(y, idx_remove).reshape(-1, 1)
         self.thin_pcd_2d = np.concatenate((X, y), 1)
-        self.pcd2d_to_binary_image()
+        # self.pcd2d_to_binary_image()
 
     def get_feature_ransac(self, flag):
         X = self.pcd_2d[:, 0]

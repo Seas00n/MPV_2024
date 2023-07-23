@@ -27,7 +27,7 @@ from sklearn import linear_model, datasets
 
 
 
-dst = 'data_experiment/data/depth_out'
+dst = 'data_experiment/calibrate/depth_out'
 
 
 mirroring = False
@@ -304,7 +304,7 @@ def RANSAC(X, y):
     inlier_mask = ransac.inlier_mask_
     outlier_mask = np.logical_not(inlier_mask)
 
-    # Predict data of estimated models
+    # Predict calibrate of estimated models
     line_X = np.arange(X.min(), X.max(),0.01)[:, np.newaxis]
     line_y_ransac = ransac.predict(line_X)
 

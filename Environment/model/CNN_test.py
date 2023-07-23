@@ -6,7 +6,6 @@ import torch.nn.functional as F
 #
 
 
-
 #
 #
 # class classifier(nn.Module):
@@ -31,9 +30,6 @@ import torch.nn.functional as F
 #         x = F.dropout(x, training=self.training)
 #         x = self.fc3(x)
 #         return x
-
-
-
 
 
 # class features(nn.Module):
@@ -91,16 +87,17 @@ class Reshape(nn.Module):
         x = x.view(x.size(0), 110976)
         return x
 
+
 class model(nn.Module):
     def __init__(self):
         super(model, self).__init__()
         self.model = nn.Sequential(
             # nn.BatchNorm2d(1),
-            nn.Conv2d(1, 64, kernel_size=(5,5), stride=(1,1),padding = (2,2)),
+            nn.Conv2d(1, 64, kernel_size=(5, 5), stride=(1, 1), padding=(2, 2)),
             nn.BatchNorm2d(64),
             nn.ReLU(True),
             nn.MaxPool2d(stride=2, kernel_size=5),
-            nn.Conv2d(64, 128, kernel_size=3, stride=1,padding = (1,1)),
+            nn.Conv2d(64, 128, kernel_size=3, stride=1, padding=(1, 1)),
             nn.BatchNorm2d(128),
             nn.ReLU(True),
             nn.MaxPool2d(stride=2, kernel_size=5),
@@ -127,10 +124,6 @@ class model(nn.Module):
         x = self.model(x)
         return x
 
-
-
-
-
 # class Reshape(nn.Module):
 #     def __init__(self):
 #         super(Reshape, self).__init__()
@@ -138,7 +131,7 @@ class model(nn.Module):
 #     def forward(self, x):
 #         x = x.view(x.size(0), 102400)
 #         return x
-#
+
 # class extractor(nn.Module):
 #     def __init__(self):
 #         super(extractor, self).__init__()
@@ -184,5 +177,3 @@ class model(nn.Module):
 #     def forward(self, x, reverse=False):
 #         x = self.classifier(x)
 #         return x
-
-

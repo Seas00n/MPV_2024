@@ -107,7 +107,7 @@ class AnyDevice(gatt.Device):
                 self.imu_buffer.flush()
 
             if self.sock_pc is not None:
-                print("send blue source data")
+                print("send blue source calibrate")
                 self.sock_pc.sendall(value)
 
     # 这个是在本地解析
@@ -342,7 +342,7 @@ class AnyDevice(gatt.Device):
                 imu_dat[33] = float(tmpU8)
 
         else:
-            print("[error] data head not define")
+            print("[error] calibrate head not define")
 
 
 # arg_parser = ArgumentParser(description="GATT Connect Demo")
