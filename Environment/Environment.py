@@ -1,3 +1,6 @@
+import io
+import statistics
+
 import cv2
 import numpy as np
 import torch
@@ -11,177 +14,205 @@ from sklearn.neighbors import NearestNeighbors
 
 class Env_Type(Enum):
     Levelground = 0
-    Slope = 1
-    Upstair = 2
-    Downstair = 3
-    Obstacle = 4
+    Upstair = 1
+    DownStair = 2
+    Upslope = 3
+    Downslope = 4
+    Obstacle = 5
+    Unknown = 6
 
 
 class Environment:
     def __init__(self):
-        self.classification_model = torch.load('/home/yuxuan/Project/CCH_Model/realworld_model_epoch49.pt',
+        self.classification_model = torch.load('/home/yuxuan/Project/CCH_Model/realworld_model_epoch_29.pt',
                                                map_location=torch.device('cpu'))
-        self.env_type_from_nn = Env_Type.Levelground
-        self.env_type_buffer = np.zeros(5, dtype=np.uint64)
+        self.type_pred_from_nn = Env_Type.Levelground
+        self.type_pred_buffer = np.zeros(5, dtype=np.uint64)
         self.pcd_2d = np.zeros([0, 2])
-        self.thin_pcd_2d = np.zeros([0, 2])
+        self.pcd_thin = np.zeros([0, 2])
         self.img_binary = np.zeros((100, 100)).astype('uint8')
+        self.R_world_imu = np.identity(3)
+        self.R_world_camera = np.identity(3)
+        self.R_world_body = np.identity(3)
+        self.fea = [0, 0, 0, 0]
+        self.R_imu_camera = Rotation.from_euler('xyz', [0, 180, 0], degrees=True).as_matrix()
+        self.pcd_prev = np.zeros([0, 2])  # 用于对齐
+        self.fea_prev = [0, 0, 0, 0]
+
+    def pcd_from_body_to_world(self, imu):
+        eular = imu[0:3]
+        self.R_world_imu = Rotation.from_euler('xyz', [eular[0], eular[1], eular[2]],
+                                               degrees=True).as_matrix()
+        R_body_imu = Rotation.from_euler('xyz', [eular[0] - 90, 0, 180], degrees=True).as_matrix()
+        self.R_world_body = np.matmul(self.R_world_imu, R_body_imu.T)
+        pcd_3d = np.zeros((np.shape(self.pcd_2d)[0] * 5, 3))
+        pcd_3d[:, 1:] = np.repeat(self.pcd_2d, 5, axis=0)
+        x = np.linspace(-0.2, 0.2, 5).reshape((-1, 1))
+        pcd_3d[:, 0] = np.reshape(np.repeat(x, np.shape(self.pcd_2d)[0], axis=1).T,
+                                  (-1,))
+        return pcd_3d
 
     def pcd_to_binary_image(self, pcd, imu):
         eular = imu[0:3]
-        chosen_idx = np.logical_and(pcd[:, 0] < 0.05, pcd[:, 0] > 0.02, abs(pcd[:, 1]) < 2)
-        pcd_new = pcd[chosen_idx, :]
-        # R = Rotation.from_euler('xyz', [eular[0] - 90.0, 0, 0], degrees=True).as_matrix()
-        # pcd_new = np.matmul(R, pcd_new.T)
-        # chosen_y = pcd_new[1,:].T
-        # chosen_z = pcd_new[2,:].T
-        y = pcd_new[:, 1]
-        z = pcd_new[:, 2]
-        theta = np.pi / 180 * eular[0] - np.pi / 2
-        chosen_y = y * np.cos(theta) - z * np.sin(theta)
-        chosen_z = z * np.cos(theta) + y * np.sin(theta)
+        # imu在世界坐标系下的位姿
+        self.R_world_imu = Rotation.from_euler('xyz', [eular[0], eular[1], eular[2]],
+                                               degrees=True).as_matrix()
+        # camera 在世界坐标系下的位姿
+        self.R_world_camera = np.matmul(self.R_world_imu, self.R_imu_camera)
+
+        # body 在世界坐标系下的位姿
+        R_body_imu = Rotation.from_euler('xyz', [eular[0] - 90, 0, 180], degrees=True).as_matrix()
+        self.R_world_body = np.matmul(self.R_world_imu, R_body_imu.T)
+
+        # pcd在body坐标系下的表示
+        R_body_camera = np.matmul(R_body_imu, self.R_imu_camera)
+
+        # 相机安装在机器左测，实际地形取相机偏右侧的部分对应机器正中间
+        chosen_idx = np.logical_and(pcd[:, 0] < 0.05, pcd[:, 0] > 0.02)
+        pcd_chosen = pcd[chosen_idx, :]
+        pcd_chosen_in_body = np.matmul(R_body_camera, pcd_chosen.T).T
+        # 选取z0.1-2距离的点
+        chosen_idx = np.logical_and(pcd_chosen_in_body[:, 1] < 2.5, pcd_chosen_in_body[:, 1] > 0.01)
+        chosen_y = pcd_chosen_in_body[chosen_idx, 1]
+        chosen_z = pcd_chosen_in_body[chosen_idx, 2]
         self.img_binary = np.zeros((100, 100)).astype('uint8')
-        #######################
-        #
-        #
-        #    *******
-        #    *
-        #    *
-        # **** ----levelground y = 100
-        ########################
         if np.any(chosen_y):
-            self.pcd_2d = np.vstack((chosen_y, chosen_z))
-            y_min = np.min(chosen_y)
-            z_min = np.min(chosen_z)
-            chosen_y = chosen_y - y_min
-            chosen_z = chosen_z - z_min
+            self.pcd_2d = pcd_chosen_in_body[chosen_idx, 2:0:-1]
+            self.pcd_2d[:, 1] = -self.pcd_2d[:, 1]
             y_max = np.max(chosen_y)
-            chosen_y = chosen_y + (1 - y_max)  # align with 1(level_ground)
-            chosen_idx = np.logical_and(abs(chosen_y) < 1, abs(chosen_z) < 1)
-            chosen_y = chosen_y[chosen_idx]
-            chosen_z = chosen_z[chosen_idx]
-            chosen_idx = np.logical_and(abs(chosen_y) > 0.01, abs(chosen_z) > 0.01)
+            z_min = np.min(chosen_z)
+            chosen_y = pcd_chosen_in_body[chosen_idx, 1]
+            chosen_z = pcd_chosen_in_body[chosen_idx, 2]
+            # 和z=0,y=1对齐
+            y_max = np.max(chosen_y)
+            z_min = np.min(chosen_z)
+            chosen_y = chosen_y + (0.99 - y_max)
+            chosen_z = chosen_z + (0.01 - z_min)
+            # 只取出最前方1m^2内的点
+            chosen_idx = np.logical_and(chosen_y > 0, chosen_z < 1)
             chosen_y = chosen_y[chosen_idx]
             chosen_z = chosen_z[chosen_idx]
             pixel_y = np.floor(100 * chosen_y).astype('int')
             pixel_z = np.floor(100 * chosen_z).astype('int')
+            self.img_binary = np.zeros((100, 100)).astype('uint8')
             for i in range(np.size(pixel_y)):
                 self.img_binary[pixel_y[i], pixel_z[i]] = 255
-
         else:
             self.pcd_2d = np.zeros([len(chosen_y), 2])
 
-    def pcd2d_to_binary_image(self):
-        chosen_y = self.thin_pcd_2d[:, 0]
-        chosen_z = self.thin_pcd_2d[:, 1]
-        y_min = np.min(self.pcd_2d[:, 0])
-        z_min = np.min(self.pcd_2d[:, 1])
-        y_max = np.max(self.pcd_2d[:, 0])
-        chosen_y = chosen_y - y_min
-        chosen_z = chosen_z - z_min
-        chosen_y = chosen_y + (1 - y_max)  # align with 1
-        chosen_idx = np.logical_and(abs(chosen_y) < 1, abs(chosen_z) < 1)
-        chosen_y = chosen_y[chosen_idx]
-        chosen_z = chosen_z[chosen_idx]
-        chosen_idx = np.logical_and(abs(chosen_y) > 0.01, abs(chosen_z) > 0.01)
-        chosen_y = chosen_y[chosen_idx]
-        chosen_z = chosen_z[chosen_idx]
-        pixel_y = np.floor(100 * chosen_y).astype('int')
-        pixel_z = np.floor(100 * chosen_z).astype('int')
-        for i in range(np.size(pixel_y)):
-            self.img_binary[pixel_y[i], pixel_z[i]] = 255
-
     def classification_from_img(self):
-        img = np.asarray(self.img_binary, dtype=np.uint8).reshape(1, 1, 100, 100)
-        img_torch = torch.tensor(img, dtype=torch.float)
+        img_input = self.img_binary.reshape(1, 1, 100, 100).astype('uint8')
+        img_input = torch.tensor(img_input, dtype=torch.float)
         with torch.no_grad():
-            output = self.classification_model(img_torch)
-
+            output = self.classification_model(img_input)
         pred = output.data.max(1)[1].cpu().numpy()
-        self.env_type_buffer = fifo_data_vec(self.env_type_buffer, pred)
-        pred = scipy.stats.mode(self.env_type_buffer)[0]
-        self.env_type_from_nn = Env_Type(pred)
+        self.type_pred_buffer = fifo_data_vec(self.type_pred_buffer, pred)
+        self.type_pred_from_nn = statistics.mode(self.type_pred_buffer)
 
     def elegant_img(self):
         img = np.zeros((500, 500, 3)).astype('uint8')
-        img[:, :, 0] = cv2.resize(self.img_binary,(500,500))
-        img[:, :, 1] = cv2.resize(self.img_binary,(500,500))
-        img[:, :, 2] = cv2.resize(self.img_binary,(500,500))
-        img[0:10, :, 0] = np.ones((10, 500)) * 255
-        img[0:10, :, 1] = np.ones((10, 500)) * 0
-        img[0:10, :, 2] = np.ones((10, 500)) * 255
-        img[:, 0:10, 0] = np.ones((500, 10)) * 255
-        img[:, 0:10, 1] = np.ones((500, 10)) * 0
-        img[:, 0:10, 2] = np.ones((500, 10)) * 0
+        img[:, :, 0] = cv2.resize(self.img_binary, (500, 500))
+        img[:, :, 1] = cv2.resize(self.img_binary, (500, 500))
+        img[:, :, 2] = cv2.resize(self.img_binary, (500, 500))
         return img
 
     def thin(self):
         nb1 = NearestNeighbors(n_neighbors=20, algorithm='auto')
-        nb1.fit(self.pcd_2d)  # pcd_2d作为训练集
-        dis, idx = nb1.kneighbors(self.pcd_2d)
-        x = self.pcd_2d[idx, :][:, :, 0]
-        y = self.pcd_2d[idx, :][:, :, 1]
-        thin_edge = np.array([np.mean(x, 1), np.mean(y, 1)]).T
-        X = thin_edge[:, 0][thin_edge[:, 1] > 0.1].reshape(-1, 1)
-        y = thin_edge[:, 1][thin_edge[:, 1] > 0.1].reshape(-1, 1)
-        ymax = max(y)
-        idx_remove = np.where(ymax - y < 0.02)[0]
-        if len(idx_remove) < 10:
+        nb1.fit(self.pcd_2d)
+        _, idx = nb1.kneighbors(self.pcd_2d)
+        self.pcd_thin = np.mean(self.pcd_2d[idx, :], axis=1)
+        ymax = np.max(self.pcd_thin[:, 0])
+        idx_chosen = self.pcd_thin[:, 0] > 0.1
+        self.pcd_thin = self.pcd_thin[idx_chosen, :]
+        idx_remove = np.where(ymax - self.pcd_thin[:, 0] < 0.02)[0]
+        if 0 < len(idx_remove) < 10 and len(idx_remove) < np.shape(self.pcd_thin)[0]:
             print('remove')
-            X = np.delete(X, idx_remove).reshape(-1, 1)
-            y = np.delete(y, idx_remove).reshape(-1, 1)
-        self.thin_pcd_2d = np.concatenate((X, y), 1)
-        # self.pcd2d_to_binary_image()
+            self.pcd_thin = np.delete(self.pcd_thin, idx_remove, axis=0)
 
-    def get_feature_ransac(self, flag):
-        X = self.pcd_2d[:, 0]
-        Y = self.pcd_2d[:, 1]
-        ymin = min(Y)
+    def get_fea_sa(self):
+        xc = yc = w = h = 0
+        X = self.pcd_thin[:, 0]
+        Y = self.pcd_thin[:, 1]
+        if np.max(Y) - np.min(Y) < 0.1:
+            print('点云高度差过小，当前地形应该是平地')
+            return xc, yc, w, h
         th = 0.05
-        if flag == 0:
-            X0 = X
-            Y0 = Y
-        else:
-            X0 = X[np.where(Y - ymin > 0.06)[0]]
-            Y0 = Y[np.where(Y - ymin > 0.06)[0]]
-        inlier_mask1, outlier_mask1, line_y_ransac1, line_X1 = RANSAC(X0, Y0, th)
-        y1 = Y0[inlier_mask1]
-        mean_y1 = np.mean(y1)
-        idx1 = np.where(abs(Y0 - mean_y1) < 0.008)[0]
-        # 以第一次拟合的直线的y坐标均值为中心，选取在其上下一定范围内的点作为第一条直线，
-        # 避免单纯依靠RANSAC拟合的直线太细，从而使第二次拟合的直线也在这层台阶上
-        x1 = X0[idx1]
-        y1 = Y0[idx1]
-        X1 = np.delete(X0, idx1)
-        Y1 = np.delete(Y0, idx1)
-
-        inlier_mask2, outlier_mask2, line_y_ransac2, line_X2 = RANSAC(X1, Y1, th)
-        y2 = Y1[inlier_mask2]
-        mean_y2 = np.mean(y2)
-        idx2 = np.where(abs(Y1 - mean_y2) < 0.008)[0]
-        # 以第一次拟合的直线的y坐标均值为中心，选取在其上下一定范围内的点作为第一条直线，
-        # 避免单纯依靠RANSAC拟合的直线太细，从而使第二次拟合的直线也在这层台阶上
-        x2 = X1[idx2]
-        y2 = Y1[idx2]
+        X0 = X[Y - np.min(Y) < 0.25].reshape((-1, 1))
+        Y0 = Y[Y - np.min(Y) < 0.25].reshape((-1, 1))
+        try:
+            inlier_mask1, outlier_mask1, line_y_ransac1, line_X1 = RANSAC(X0, Y0, th)
+            mean_y1 = np.mean(Y0[inlier_mask1])
+            idx1 = np.where(abs(Y0 - mean_y1) < 0.08)[0]  # 0.08
+            x1 = X0[idx1, :]
+            y1 = Y0[idx1, :]
+            X1 = np.delete(X0, idx1).reshape((-1, 1))
+            Y1 = np.delete(Y0, idx1).reshape((-1, 1))
+        except:
+            print("第一次拟合失败")
+            return xc, yc, w, h
+        try:
+            inlier_mask2, outlier_mask2, line_y_ransac2, line_X2 = RANSAC(X1, Y1, th)
+            mean_y2 = np.mean(Y1[inlier_mask2])
+            idx2 = np.where(abs(Y1 - mean_y2) < 0.08)[0]  # 0.08
+            x2 = X1[idx2, :]
+            y2 = Y1[idx2, :]
+        except:
+            print("第二次拟合错误，相机视角有问题或被阻挡")
+            left_down_conner_y = np.min(Y1)
+            right_up_conner_y = np.max(Y1)
+            height_from_left_conner = mean_y1 - left_down_conner_y
+            height_to_right_conner = right_up_conner_y - mean_y1
+            # -----------------------#
+            #      %>>>>>>          #
+            #      ?                #
+            #      ?                #
+            #      ?                #
+            # -----------------------#
+            if height_from_left_conner > 0.05 and np.min(x1) > -0.05:
+                xc = np.min(x1)
+                h = height_from_left_conner
+                yc = np.mean(y1)
+                w = 0
+            # -----------------------#
+            #           %            #
+            #           ?            #
+            #   ?>>>>>>>?            #
+            #   ?                    #
+            # -----------------------#
+            elif height_to_right_conner > 0.05:
+                xc = np.max(x1)
+                h = height_to_right_conner
+                yc = np.max(Y1)
+                w = 0
+            else:
+                xc = 0
+                yc = 0
+                h = 0
+            return xc, yc, w, h
+        if len(x1) * len(x2) == 0:
+            return xc, yc, w, h
         if mean_y1 > mean_y2:
             stair_high_x, stair_high_y = x1, y1
             stair_low_x, stair_low_y = x2, y2
         else:
             stair_high_x, stair_high_y = x2, y2
             stair_low_x, stair_low_y = x1, y1
-
-        vertical_mean_x3 = (max(stair_high_x) + min(stair_low_x)) / 2
-        vertical_idx3 = np.where(abs(X1 - vertical_mean_x3) < 0.006)[0]
-
-        stair_high_fea_x = stair_high_x[stair_high_x - min(stair_high_x) < 0.03]
-        stair_high_fea_y = stair_high_y[stair_high_x - min(stair_high_x) < 0.03]
-        stair_high_fea = np.concatenate((stair_high_fea_x, stair_high_fea_y), 1)
-
-        if len(vertical_idx3) < 1000:
-            fea = None
+        w = np.max([np.max(stair_high_x) - np.max(stair_low_x),
+                    np.min(stair_high_x) - np.min(stair_low_x)])
+        h = np.mean(stair_high_y) - np.mean(stair_low_y)
+        if np.mean(stair_low_y) - np.min(Y1) > 0.05 and np.min(stair_low_x) > -0.05:
+            xc = np.min(stair_low_x)
+            yc = np.mean(stair_low_y)
         else:
-            vertical_fea_x = X1[vertical_idx3]
-            vertical_fea_y = Y1[vertical_idx3]
-            vertical_fea = np.concatenate((vertical_fea_x, vertical_fea_y), 1)
-
-        return stair_high_fea, vertical_fea
+            xc = np.min(stair_high_x)
+            yc = np.mean(stair_high_y)
+        if w > 0.35 and np.max(stair_low_x) - np.min(stair_low_x) > 0.35:
+            print("第一节台阶")
+            w = np.max([np.max(stair_high_x) - np.max(stair_low_x),
+                        np.max(stair_high_x) - np.min(stair_high_x)])
+        elif w > 0.35 and np.max(stair_high_x) - np.min(stair_high_x) > 0.35:
+            print("最后一个台阶")
+            print('最后一级台阶')
+            w = np.max([np.min(stair_high_x) - np.min(stair_low_x),
+                        np.max(stair_low_x) - np.min(stair_low_x)])
+        return xc, yc, w, h

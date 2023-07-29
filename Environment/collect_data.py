@@ -26,8 +26,9 @@ def pcd_handler(channel, data):
 env = Environment()
 
 imu_buffer_path = "../Sensor/IM948/imu_buffer.npy"
-data_save_path = "/media/yuxuan/Ubuntu 20.0/IMG_TEST/TEST1/"
+data_save_path = "/media/yuxuan/SSD/IMG_TEST/TEST10/"
 img_list = os.listdir(data_save_path)
+str = input("按回车清除目录："+data_save_path)
 for f in img_list:
     os.remove(data_save_path + f)
 
@@ -40,6 +41,7 @@ if __name__ == "__main__":
     t0 = time.time()
     img_list = []
     pcd_2d_list = []
+    pcd_list = []
     try:
         for i in range(totaltimestep):
             pcd_lc.handle()
@@ -60,10 +62,10 @@ if __name__ == "__main__":
                 np.save(data_save_path + "imu_data.npy", imu_data)
                 print('Wait for Saving {} Pictures'.format(len(img_list)))
                 for k in range(len(img_list)):
-                    np.save(data_save_path + "{}.npy".format(k), img_list[k])
+                    np.save(data_save_path + "{}_img.npy".format(k), img_list[k])
                     print("{} in {} img".format(k, len(img_list)))
                 for k in range(len(pcd_2d_list)):
-                    np.save(data_save_path + "{}_.npy".format(k), pcd_2d_list[k])
+                    np.save(data_save_path + "{}_pcd.npy".format(k), pcd_2d_list[k])
                     print("{} in {} pcd".format(k, len(pcd_2d_list)))
                 break
     except KeyboardInterrupt:

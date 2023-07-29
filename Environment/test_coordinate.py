@@ -12,7 +12,7 @@ from Environment import *
 import PIL
 import os
 
-totaltimestep = 50
+totaltimestep = 80
 pcd_data_int = np.zeros((38528, 3))
 pcd_data_temp = np.zeros((38528, 3))
 
@@ -31,6 +31,8 @@ env = Environment()
 imu_buffer_path = "../Sensor/IM948/imu_buffer.npy"
 data_save_path = "data/"
 img_list = os.listdir(data_save_path)
+# for f in img_list:
+#     os.remove(data_save_path + f)
 
 imu_color = ['#D8383A', '#96C37D', '#2F7FC1']
 camera_color = ['#FA7F6F', '#8ECFC9', '#82B0D2']
@@ -90,56 +92,6 @@ def data_collect():
         pass
 
 
-def data_calibrate():
-    data_save_path = "calibrate/"
-    pcd = np.load(data_save_path + "44_.npy")
-    imu_data = np.load(data_save_path + "imu_data_.npy")
-    eular_angle = imu_data[45, :][6:9]
-
-    fig = plt.figure(figsize=(5, 5))
-    ax = plt.axes(projection='3d')
-
-    # 相机坐标系下的点云数据
-    ax.scatter3D(pcd[0:-1:30, 0], pcd[0:-1:30, 1], pcd[0:-1:30, 2], color='blue', linewidths=0.5)
-
-    # 相机坐标系绘制
-    X_camera = Rotation.from_euler('xyz', [0, 0, 0], degrees=True).as_matrix()
-    plot_coordinate(X_camera, ax)
-    plt.show()
-
-    # 考虑相机安装位置可以看到相机的z轴朝前，y向下，x向右
-    # 相机坐标系在解剖坐标系下的朝向为
-    R_body_camera = Rotation.from_euler('xyz', [-90, 0, 0], degrees=True).as_matrix()
-    fig = plt.figure(figsize=(5, 5))
-    ax = plt.axes(projection='3d')
-    plot_coordinate(R_body_camera, ax)
-    pcd_in_body = np.matmul(R_body_camera, pcd.T).T
-    ax.scatter3D(pcd_in_body[0:-1:30, 0], pcd_in_body[0:-1:30, 1], pcd_in_body[0:-1:30, 2], color='blue',
-                 linewidths=0.5)
-    plt.show()
-    # imu 在世界坐标系下的位姿
-    R_world_imu = Rotation.from_euler('xyz', [eular_angle[0], eular_angle[1], eular_angle[2]], degrees=True).as_matrix()
-    fig = plt.figure(figsize=(5, 5))
-    ax = plt.axes(projection='3d')
-    plot_coordinate(R_world_imu, ax, length=0.2, linewidth=2, shift=[0.02, 0.02, 0])
-    # 考虑到安装情况，相机到IMU的坐标变换矩阵为
-    R_imu_camera = Rotation.from_euler('xyz', [0, 180, 0], degrees=True).as_matrix()
-    # 从而得到相机坐标系在世界坐标系下的表示
-    R_world_camera = np.matmul(R_world_imu, R_imu_camera)
-    plot_coordinate(R_world_camera, ax, length=0.2, linewidth=2, shift=[-0.02, -0.02, 0])
-    plt.show()
-    # 解剖坐标系在世界坐标系下的表示为
-    fig = plt.figure(figsize=(5, 5))
-    ax = plt.axes(projection='3d')
-    R_world_body = np.matmul(R_body_camera, R_world_camera.T)
-    plot_coordinate(R_world_body, ax)
-    # 将点云从解剖坐标系变换到世界坐标系下，可以看到结果正确
-    pcd_in_world = np.matmul(R_world_body, pcd_in_body.T).T
-    ax.scatter3D(pcd_in_world[0:-1:30, 0], pcd_in_world[0:-1:30, 1], pcd_in_world[0:-1:30, 2], color='blue',
-                 linewidths=0.5)
-    plt.show()
-
-
 if __name__ == "__main__":
     # data_collect()
 
@@ -147,9 +99,10 @@ if __name__ == "__main__":
 
     ax = fig.add_subplot(3, 2, 1, projection='3d')
     data_save_path = "data/"
-    pcd = np.load(data_save_path + "20_.npy")
+    frame1 = 28
+    pcd = np.load(data_save_path + "{}_.npy".format(int(frame1)))  # 27
     imu_data = np.load(data_save_path + "imu_data_.npy")
-    eular_angle = imu_data[19, :][6:9]
+    eular_angle = imu_data[frame1 + 1, :][6:9]
     #################################################################
     # imu 在世界坐标系下的位姿
     X_world_imu = R_world_imu = Rotation.from_euler('xyz', [eular_angle[0], eular_angle[1], eular_angle[2]],
@@ -190,6 +143,8 @@ if __name__ == "__main__":
     chosen_idx = np.logical_and(pcd[:, 0] < 0.05, pcd[:, 0] > 0.02)
     pcd_chosen = pcd[chosen_idx, :]
     pcd_chosen_in_body = np.matmul(R_body_camera, pcd_chosen.T).T
+    chosen_idx = np.logical_and(pcd_chosen_in_body[:, 1] < 2.5, pcd_chosen_in_body[:, 1] > 0.01)
+    pcd_chosen_in_body = pcd_chosen_in_body[chosen_idx, :]
     ax2.plot3D(pcd_chosen_in_body[0:-1:2, 0], pcd_chosen_in_body[0:-1:2, 1] - 0.4, pcd_chosen_in_body[0:-1:2, 2],
                color='red',
                linewidth=2)
@@ -197,9 +152,8 @@ if __name__ == "__main__":
     #######################################################################
     ax3 = fig.add_subplot(3, 2, 3)
     # 选取0.1-2距离的点
-    chosen_idx = np.logical_and(abs(pcd_chosen_in_body[:, 1]) < 2, pcd_chosen_in_body[:, 1] > 0.01)
-    chosen_y = pcd_chosen_in_body[chosen_idx, 1]
-    chosen_z = pcd_chosen_in_body[chosen_idx, 2]
+    chosen_y = pcd_chosen_in_body[:, 1]
+    chosen_z = pcd_chosen_in_body[:, 2]
     ax3.scatter(chosen_y, chosen_z)
     # 和z=0,y=1对齐
     y_max = np.max(chosen_y)
@@ -221,16 +175,14 @@ if __name__ == "__main__":
     img_binary = np.zeros((100, 100)).astype('uint8')
     for i in range(np.size(pixel_y)):
         img_binary[pixel_y[i], pixel_z[i]] = 255
-    img_binary[:, 1] = np.flip(img_binary[:, 1], axis=0)
     ax4 = fig.add_subplot(3, 2, 4)
     ax4.imshow(img_binary, cmap='gray')
     ###################################################################
     ax5 = fig.add_subplot(3, 2, 5)
-    chosen_idx = np.logical_and(abs(pcd_chosen_in_body[:, 1]) < 2, pcd_chosen_in_body[:, 1] > 0.01)
-    pcd_2d = pcd_chosen_in_body[chosen_idx, 2:0:-1]
+    pcd_2d = pcd_chosen_in_body[:, 2:0:-1]
     pcd_2d[:, 1] = -pcd_2d[:, 1]
     # KNN均值滤波
-    ax5.scatter(pcd_2d[:, 0], pcd_2d[:, 1], linewidth=0.2)
+    ax5.scatter(pcd_2d[:, 0], pcd_2d[:, 1], linewidth=0.2, color='c')
     ax5.set_xlim([0, 1.5])
     ax5.set_ylim([-1.5, 0])
     ax5.axis('equal')
@@ -257,6 +209,7 @@ if __name__ == "__main__":
     pred = output.data.max(1)[1].cpu().numpy()
     print(pred)
     ##################################################################
+    xc = yc = w = h = 0  # 楼梯地形的四个特征
     X = pcd_thin[:, 0]
     Y = pcd_thin[:, 1]
     if np.max(Y) - np.min(Y) < 0.1:
@@ -264,26 +217,87 @@ if __name__ == "__main__":
     th = 0.05
     X0 = X[Y - np.min(Y) < 0.25].reshape((-1, 1))
     Y0 = Y[Y - np.min(Y) < 0.25].reshape((-1, 1))
-    inlier_mask1, outlier_mask1, line_y_ransac1, line_X1 = RANSAC(X0, Y0, th)
-    mean_y1 = np.mean(Y0[inlier_mask1])
-    idx1 = np.where(abs(Y0 - mean_y1) < 0.008)[0]
-    x1 = X0[idx1, :]
-    y1 = Y0[idx1, :]
-    ax5.plot(x1, y1, color='red')
-    X1 = np.delete(X0, idx1).reshape((-1, 1))
-    Y1 = np.delete(Y0, idx1).reshape((-1, 1))
-    inlier_mask2, outlier_mask2, line_y_ransac2, line_X2 = RANSAC(X1, Y1, th)
-    mean_y2 = np.mean(Y1[inlier_mask2])
-    idx2 = np.where(abs(Y1 - mean_y2) < 0.008)[0]
-    x2 = X1[idx2, :]
-    y2 = Y1[idx2, :]
-    ax5.plot(x2, y2, color='red')
-    if mean_y1 > mean_y2:
-        stair_high_x, stair_high_y = x1, y1
-        stair_low_x, stair_low_y = x2, y2
-    else:
-        stair_high_x, stair_high_y = x2, y2
-        stair_low_x, stair_low_y = x1, y1
-
-
+    flag_stair1_success = 0
+    try:
+        inlier_mask1, outlier_mask1, line_y_ransac1, line_X1 = RANSAC(X0, Y0, th)
+        mean_y1 = np.mean(Y0[inlier_mask1])
+        idx1 = np.where(abs(Y0 - mean_y1) < 0.01)[0]
+        x1 = X0[idx1, :]
+        y1 = Y0[idx1, :]
+        ax5.plot(x1, y1, color='blue')
+        flag_stair1_success = 1
+    except:
+        print("第一次拟合失败")
+    if flag_stair1_success == 1:
+        X1 = np.delete(X0, idx1).reshape((-1, 1))
+        Y1 = np.delete(Y0, idx1).reshape((-1, 1))
+        x2 = []
+        y2 = []
+        flag_stair2_success = 0
+        try:
+            inlier_mask2, outlier_mask2, line_y_ransac2, line_X2 = RANSAC(X1, Y1, th)
+            mean_y2 = np.mean(Y1[inlier_mask2])
+            idx2 = np.where(abs(Y1 - mean_y2) < 0.008)[0]
+            x2 = X1[idx2, :]
+            y2 = Y1[idx2, :]
+            ax5.plot(x2, y2, color='blue')
+            flag_stair2_success = 1
+        except:
+            print("第二次拟合错误，相机视角有问题或被阻挡")
+            left_down_conner_y = np.min(Y1)
+            right_up_conner_y = np.max(Y1)
+            height_from_left_conner = mean_y1 - left_down_conner_y
+            height_to_right_conner = right_up_conner_y - mean_y1
+            # -----------------------#
+            #      %>>>>>>          #
+            #      ?                #
+            #      ?                #
+            #      ?                #
+            # -----------------------#
+            if height_from_left_conner > 0.05 and np.min(x1) > -0.05:
+                xc = np.min(x1)
+                h = height_from_left_conner
+                yc = np.mean(y1)
+                w = 0
+            # -----------------------#
+            #           %            #
+            #           ?            #
+            #   ?>>>>>>>?            #
+            #   ?                    #
+            # -----------------------#
+            elif height_to_right_conner > 0.05:
+                xc = np.max(x1)
+                h = height_to_right_conner
+                yc = np.max(Y1)
+                w = 0
+            else:
+                xc = 0
+                yc = 0
+                h = 0
+        if flag_stair1_success * flag_stair2_success != 0:
+            if mean_y1 > mean_y2:
+                stair_high_x, stair_high_y = x1, y1
+                stair_low_x, stair_low_y = x2, y2
+            else:
+                stair_high_x, stair_high_y = x2, y2
+                stair_low_x, stair_low_y = x1, y1
+            w = np.max([np.max(stair_high_x) - np.max(stair_low_x),
+                        np.min(stair_high_x) - np.min(stair_low_x)])
+            h = np.mean(stair_high_y) - np.mean(stair_low_y)
+            if np.mean(stair_low_y) - np.min(Y1) > 0.05 and np.min(stair_low_x) > -0.05:
+                xc = np.min(stair_low_x)
+                yc = np.mean(stair_low_y)
+            else:
+                xc = np.min(stair_high_x)
+                yc = np.mean(stair_high_y)
+            if w > 0.35 and np.max(stair_low_x) - np.min(stair_low_x) > 0.35:
+                print("第一节台阶")
+                w = np.max([np.max(stair_high_x) - np.max(stair_low_x),
+                            np.max(stair_high_x) - np.min(stair_high_x)])
+            elif w > 0.35 and np.max(stair_high_x) - np.min(stair_high_x) > 0.35:
+                print("最后一个台阶")
+                w = np.max([np.min(stair_high_x) - np.min(stair_low_x),
+                            np.max(stair_low_x) - np.min(stair_low_x)])
+    ax5.scatter(xc, yc, color='red', linewidth=2)
+    np.save("{}_pcd2d.npy".format(frame1), pcd_thin)
     plt.show()
