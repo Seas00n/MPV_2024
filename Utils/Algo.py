@@ -21,7 +21,7 @@ def RANSAC(X, y, th):
         return r
 
     ransac = linear_model.RANSACRegressor(min_samples=2, residual_threshold=0.025, is_data_valid=is_data_valid,
-                                          max_trials=1000)
+                                          max_trials=400)
     ransac.fit(X, y)
     inlier_mask = ransac.inlier_mask_
     outlier_mask = np.logical_not(inlier_mask)

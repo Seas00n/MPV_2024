@@ -2,7 +2,7 @@ import open3d as o3d
 import copy
 import matplotlib.pyplot as plt
 import os
-from Environment.my_feature import *
+from my_feature import *
 
 
 def pcd2d_to_3d(pcd_2d, num_rows=5):
@@ -24,12 +24,14 @@ class open3d_alignment(object):
     def __init__(self, pcd_s, pcd_t):
         self.pcd_s2d = pcd_s
         self.pcd_t2d = pcd_t
+        print(np.shape(pcd_s))
+        print(np.shape(pcd_t))
         pcd_s3d = pcd2d_to_3d(self.pcd_s2d, num_rows=5)
-        self.pcd_s = o3d.geometry.PointCloud()
-        self.pcd_s.points = o3d.utility.Vector3dVector(pcd_s3d)
+        self.pcd_s = o3d.t.geometry.PointCloud()
+        self.pcd_s.point['positions'] = o3d.core.Tensor(pcd_s3d)
         pcd_t3d = pcd2d_to_3d(self.pcd_t2d, num_rows=5)
-        self.pcd_t = o3d.geometry.PointCloud()
-        self.pcd_t.points = o3d.utility.Vector3dVector(pcd_t3d)
+        self.pcd_t = o3d.t.geometry.PointCloud()
+        self.pcd_t.point['positions'] = o3d.core.Tensor(pcd_t3d)
 
     def draw_regis_result(self, transformation=None):
         if transformation is None:
@@ -43,17 +45,43 @@ class open3d_alignment(object):
 
     def alignment(self, transformation=None):
         if transformation is None:
-            transformation = np.eye(4)
-        threshold = 0.1
-        # self.pcd_s.estimate_normals()
-        # self.pcd_t.estimate_normals()
-        reg = o3d.pipelines.registration.registration_icp(
-            self.pcd_s, self.pcd_t, threshold, transformation,
-            o3d.pipelines.registration.TransformationEstimationPointToPoint(),
-            o3d.pipelines.registration.ICPConvergenceCriteria(max_iteration=1000)
-        )
-        print(reg)
-        return reg.transformation
+            transformation = o3d.core.Tensor.eye(4, o3d.core.Dtype.Float32)
+
+        treg = o3d.t.pipelines.registration
+        self.pcd_s.estimate_normals()
+        self.pcd_t.estimate_normals()
+
+        estimation = treg.TransformationEstimationPointToPoint()
+        criteria = treg.ICPConvergenceCriteria(relative_fitness=1e-2,
+                                               relative_rmse=1e-3,
+                                               max_iteration=50)
+        criteria_list = [
+            treg.ICPConvergenceCriteria(relative_fitness=1e-2,
+                                        relative_rmse=1e-3,
+                                        max_iteration=20),
+            treg.ICPConvergenceCriteria(1e-2, 1e-3, 15),
+            treg.ICPConvergenceCriteria(1e-2, 1e-3, 10)
+        ]
+        voxel_size = 0.3
+        voxel_sizes = o3d.utility.DoubleVector([0.5, 0.3, 0.1])
+
+        max_correspondence_distance = 0.22
+        max_correspondence_distances = o3d.utility.DoubleVector([0.3, 0.22, 0.01])
+
+        # reg = treg.icp(source=self.pcd_s, target=self.pcd_t,
+        #                max_correspondence_distance=max_correspondence_distance,
+        #                estimation_method=estimation,
+        #                criteria=criteria,
+        #                voxel_size=voxel_size
+        #                )
+        reg = treg.multi_scale_icp(source=self.pcd_s, target=self.pcd_t,
+                                   voxel_sizes=voxel_sizes,
+                                   criteria_list=criteria_list,
+                                   max_correspondence_distances=max_correspondence_distances,
+                                   estimation_method=estimation
+                                   )
+        print("Fitness:{},RMSE:{}".format(reg.fitness, reg.inlier_rmse))
+        return reg.transformation.numpy()
 
 
 if __name__ == '__main__':
@@ -183,6 +211,6 @@ if __name__ == '__main__':
             plt.draw()
             plt.pause(0.01)
 
-np.save('camera_x_buffer.npy', np.array(camera_x_buffer))
-np.save('camera_y_buffer.npy', np.array(camera_y_buffer))
-print('')
+# np.save('camera_x_buffer.npy', np.array(camera_x_buffer))
+# np.save('camera_y_buffer.npy', np.array(camera_y_buffer))
+# print('')

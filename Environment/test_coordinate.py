@@ -99,7 +99,7 @@ if __name__ == "__main__":
 
     ax = fig.add_subplot(3, 2, 1, projection='3d')
     data_save_path = "data/"
-    frame1 = 28
+    frame1 = 26
     pcd = np.load(data_save_path + "{}_.npy".format(int(frame1)))  # 27
     imu_data = np.load(data_save_path + "imu_data_.npy")
     eular_angle = imu_data[frame1 + 1, :][6:9]
@@ -125,7 +125,7 @@ if __name__ == "__main__":
     plot_coordinate(X_world_body, ax, linewidth=3, length=1, color=body_color, shift=[0, 0, 0.8])
     plot_coordinate(X_world, ax, length=1.2, linewidth=1, color=world_color, shift=[0, 0, -0.5])
     ax.scatter3D(pcd_in_world[0:-1:20, 0], pcd_in_world[0:-1:20, 1], pcd_in_world[0:-1:20, 2],
-                 c=100 * pcd_in_world[0:-1:20, 2], marker='*',
+                 c=-pcd_in_world[0:-1:20, 2], marker='*',
                  linewidths=1)
     ##################################################################
     ax2 = fig.add_subplot(3, 2, 2, projection='3d')
@@ -148,7 +148,6 @@ if __name__ == "__main__":
     ax2.plot3D(pcd_chosen_in_body[0:-1:2, 0], pcd_chosen_in_body[0:-1:2, 1] - 0.4, pcd_chosen_in_body[0:-1:2, 2],
                color='red',
                linewidth=2)
-
     #######################################################################
     ax3 = fig.add_subplot(3, 2, 3)
     # 选取0.1-2距离的点

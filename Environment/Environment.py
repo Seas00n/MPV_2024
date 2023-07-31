@@ -11,6 +11,22 @@ import scipy
 from Utils.Algo import *
 from sklearn.neighbors import NearestNeighbors
 
+def pcd2d_to_3d(pcd_2d, num_rows=5):
+    num_points = np.shape(pcd_2d)[0]
+    pcd_3d = np.zeros((num_points * num_rows, 3))
+    pcd_3d[:, 1:] = np.repeat(pcd_2d, num_rows, axis=0)
+    x = np.linspace(-0.2, 0.2, num_rows).reshape((-1, 1))
+    xx = np.repeat(x, num_points, axis=1)
+    # weights_diag = np.diag(np.linspace(0.0001, -0.0001, num_rows))
+    weights_diag = np.diag(np.linspace(0, 0, num_rows))
+    idx = np.arange(num_points)
+    idx_m = np.repeat(idx.reshape((-1, 1)).T, num_rows, axis=0)
+    xx = xx + np.matmul(weights_diag, idx_m)
+    pcd_3d[:, 0] = np.reshape(xx.T, (-1,))
+    return pcd_3d
+
+
+
 
 class Env_Type(Enum):
     Levelground = 0
@@ -34,23 +50,7 @@ class Environment:
         self.R_world_imu = np.identity(3)
         self.R_world_camera = np.identity(3)
         self.R_world_body = np.identity(3)
-        self.fea = [0, 0, 0, 0]
         self.R_imu_camera = Rotation.from_euler('xyz', [0, 180, 0], degrees=True).as_matrix()
-        self.pcd_prev = np.zeros([0, 2])  # 用于对齐
-        self.fea_prev = [0, 0, 0, 0]
-
-    def pcd_from_body_to_world(self, imu):
-        eular = imu[0:3]
-        self.R_world_imu = Rotation.from_euler('xyz', [eular[0], eular[1], eular[2]],
-                                               degrees=True).as_matrix()
-        R_body_imu = Rotation.from_euler('xyz', [eular[0] - 90, 0, 180], degrees=True).as_matrix()
-        self.R_world_body = np.matmul(self.R_world_imu, R_body_imu.T)
-        pcd_3d = np.zeros((np.shape(self.pcd_2d)[0] * 5, 3))
-        pcd_3d[:, 1:] = np.repeat(self.pcd_2d, 5, axis=0)
-        x = np.linspace(-0.2, 0.2, 5).reshape((-1, 1))
-        pcd_3d[:, 0] = np.reshape(np.repeat(x, np.shape(self.pcd_2d)[0], axis=1).T,
-                                  (-1,))
-        return pcd_3d
 
     def pcd_to_binary_image(self, pcd, imu):
         eular = imu[0:3]
