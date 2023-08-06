@@ -376,43 +376,6 @@ if __name__ == "__main__":
         if i == 1:
             plt.pause(5)
 
-        #     xc = yc = w = h = 0
-        #     if env.type_pred_from_nn == Env_Type.Upstair.value:
-        #         xc, yc, w, h = env.get_fea_sa()
-        #         regis = icp_alignment(env.pcd_prev, env.pcd_thin, alignment_flag_buffer[-1])
-        #         try:
-        #             xmove, ymove, flag = regis.alignment()
-        #         except:
-        #             print("RANSAC valueerror! Use previous estimation!")
-        #
-        #         if abs(xmove) > 0.05 or abs(ymove) > 0.05:
-        #             print("移动距离过大")
-        #             xmove_prev = camera_dx_buffer[-1]
-        #             ymove_prev = camera_dy_buffer[-1]
-        #             camera_dx_buffer.append(xmove_prev)
-        #             camera_dy_buffer.append(ymove_prev)
-        #         else:
-        #             print("对齐成功")
-        #             camera_dx_buffer.append(xmove)
-        #             camera_dy_buffer.append(ymove)
-        #     else:
-        #         camera_dx_buffer.append(0)
-        #         camera_dy_buffer.append(0)
-        #     camera_x_buffer.append(camera_x_buffer[-1] + camera_dx_buffer[-1])
-        #     camera_y_buffer.append(camera_y_buffer[-1] + camera_dy_buffer[-1])
-        #     env.pcd_prev = env.pcd_thin
-        #     if xc * yc * w * h != 0:
-        #         yy = np.repeat(xc, 5)
-        #         zz = np.repeat(yc, 5)
-        #         xx = np.linspace(-0.2, 0.2, 5)
-        #         ax.plot3D(xx, yy + camera_x_buffer[-1], zz + camera_y_buffer[-1], color='purple', linewidth=2)
-        #         add_collision(xc, yc, w, h, ax, p=[camera_x_buffer[-1], camera_y_buffer[-1]])
-        # plt.draw()
-        # plt.pause(0.05)
-        # img = env.elegant_img()
-        # add_type(img, Env_Type(env.type_pred_from_nn))
-        # cv2.imshow("binary", img)
-        # key = cv2.waitKey(1)
     if use_method1:
         np.save("traj_x_method1.npy", np.array(camera_x_buffer))
         np.save("traj_y_method1.npy", np.array(camera_y_buffer))

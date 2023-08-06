@@ -11,6 +11,7 @@ import scipy
 from Utils.Algo import *
 from sklearn.neighbors import NearestNeighbors
 
+
 def pcd2d_to_3d(pcd_2d, num_rows=5):
     num_points = np.shape(pcd_2d)[0]
     pcd_3d = np.zeros((num_points * num_rows, 3))
@@ -24,8 +25,6 @@ def pcd2d_to_3d(pcd_2d, num_rows=5):
     xx = xx + np.matmul(weights_diag, idx_m)
     pcd_3d[:, 0] = np.reshape(xx.T, (-1,))
     return pcd_3d
-
-
 
 
 class Env_Type(Enum):
@@ -121,13 +120,16 @@ class Environment:
         nb1.fit(self.pcd_2d)
         _, idx = nb1.kneighbors(self.pcd_2d)
         self.pcd_thin = np.mean(self.pcd_2d[idx, :], axis=1)
-        ymax = np.max(self.pcd_thin[:, 0])
-        idx_chosen = self.pcd_thin[:, 0] > 0.1
+        idx_chosen = self.pcd_thin[:, 1] < -0.1
         self.pcd_thin = self.pcd_thin[idx_chosen, :]
-        idx_remove = np.where(ymax - self.pcd_thin[:, 0] < 0.02)[0]
-        if 0 < len(idx_remove) < 10 and len(idx_remove) < np.shape(self.pcd_thin)[0]:
-            print('remove')
+        ymax = np.max(self.pcd_thin[:, 0])
+        idx_remove = np.where(ymax - self.pcd_thin[:, 1] < 0.02)[0]
+        if 0 < len(idx_remove) < 10:
             self.pcd_thin = np.delete(self.pcd_thin, idx_remove, axis=0)
+        mean = np.mean(self.pcd_thin[:, 0])
+        sigma = np.std(self.pcd_thin[:, 0])
+        idx_remove = np.where(abs(self.pcd_thin[:, 0] - mean) > 3 * sigma)
+        self.pcd_thin = np.delete(self.pcd_thin, idx_remove, axis=0)
 
     def get_fea_sa(self):
         xc = yc = w = h = 0
@@ -212,7 +214,6 @@ class Environment:
                         np.max(stair_high_x) - np.min(stair_high_x)])
         elif w > 0.35 and np.max(stair_high_x) - np.min(stair_high_x) > 0.35:
             print("最后一个台阶")
-            print('最后一级台阶')
             w = np.max([np.min(stair_high_x) - np.min(stair_low_x),
                         np.max(stair_low_x) - np.min(stair_low_x)])
         return xc, yc, w, h

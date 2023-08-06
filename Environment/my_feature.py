@@ -1090,7 +1090,6 @@ def get_fea_sa_original(pcd_new):
                         np.max(stair_high_x) - np.min(stair_high_x)])
         elif w > 0.35 and np.max(stair_high_x) - np.min(stair_high_x) > 0.35:
             print("最后一个台阶")
-            print('最后一级台阶')
             w = np.max([np.min(stair_high_x) - np.min(stair_low_x),
                         np.max(stair_low_x) - np.min(stair_low_x)])
         return xc, yc, w, h

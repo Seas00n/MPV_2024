@@ -4,7 +4,7 @@ import sys
 import matplotlib.pyplot as plt
 import numpy as np
 from my_feature import *
-from open3d_alignment import *
+from alignment_open3d import *
 import cv2
 
 
