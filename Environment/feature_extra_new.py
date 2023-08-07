@@ -86,8 +86,8 @@ class pcd_opreator_system(object):
                 print('A feature finding')
             Acenter_x = np.min(self.stair_low_x)
             Acenter_y = self.stair_low_y[np.argmin(self.stair_low_x)][0]
-            idx_fea_A = np.logical_and(np.abs(self.pcd_new[:, 0] - Acenter_x) < 0.03,
-                                       np.abs(self.pcd_new[:, 1] - Acenter_y) < 0.03)
+            idx_fea_A = np.logical_and(np.abs(self.pcd_new[:, 0] - Acenter_x) < 0.05,
+                                       np.abs(self.pcd_new[:, 1] - Acenter_y) < 0.05)
             if np.shape(idx_fea_A)[0] > 10:
                 fea_Ax_new = self.pcd_new[idx_fea_A, 0].reshape((-1, 1))
                 fea_Ay_new = self.pcd_new[idx_fea_A, 1].reshape((-1, 1))
@@ -114,8 +114,8 @@ class pcd_opreator_system(object):
                 print('B feature finding')
             Bcenter_x = stair_low_right_corner_x = np.max(self.stair_low_x)
             Bcenter_y = stair_low_right_corner_y = self.stair_low_y[np.argmax(self.stair_low_x)][0]
-            idx_fea_B = np.logical_and(np.abs(self.pcd_new[:, 0] - stair_low_right_corner_x) < 0.03,
-                                       np.abs(self.pcd_new[:, 1] - stair_low_right_corner_y) < 0.03)
+            idx_fea_B = np.logical_and(np.abs(self.pcd_new[:, 0] - stair_low_right_corner_x) < 0.05,
+                                       np.abs(self.pcd_new[:, 1] - stair_low_right_corner_y) < 0.05)
             if np.shape(idx_fea_B)[0] > 10:
                 fea_Bx_new = self.pcd_new[idx_fea_B, 0].reshape((-1, 1))
                 fea_By_new = self.pcd_new[idx_fea_B, 1].reshape((-1, 1))
@@ -146,8 +146,8 @@ class pcd_opreator_system(object):
                 Y_right_part = self.pcd_right_up_part[:, 1]
                 Ccenter_x = np.min(X_right_part)
                 Ccenter_y = Y_right_part[np.argmin(X_right_part)]
-                idx_fea_C = np.logical_and(np.abs(self.pcd_new[:, 0] - Ccenter_x) < 0.03,
-                                           np.abs(self.pcd_new[:, 1] - Ccenter_y) < 0.03)
+                idx_fea_C = np.logical_and(np.abs(self.pcd_new[:, 0] - Ccenter_x) < 0.05,
+                                           np.abs(self.pcd_new[:, 1] - Ccenter_y) < 0.05)
                 if np.shape(idx_fea_C)[0] > 10:
                     fea_Cx_new = self.pcd_new[idx_fea_C, 0].reshape((-1, 1))
                     fea_Cy_new = self.pcd_new[idx_fea_C, 1].reshape((-1, 1))
@@ -166,8 +166,8 @@ class pcd_opreator_system(object):
                 print("Feature C finding in Condition2")
                 Ccenter_x = stair_high_left_corner_x = np.min(self.stair_high_x)
                 Ccenter_y = stair_high_left_corner_y = self.stair_high_y[np.argmin(self.stair_high_x)][0]
-                idx_fea_C = np.logical_and(np.abs(self.pcd_new[:, 0] - stair_high_left_corner_x) < 0.03,
-                                           np.abs(self.pcd_new[:, 1] - stair_high_left_corner_y) < 0.03)
+                idx_fea_C = np.logical_and(np.abs(self.pcd_new[:, 0] - stair_high_left_corner_x) < 0.05,
+                                           np.abs(self.pcd_new[:, 1] - stair_high_left_corner_y) < 0.05)
                 if np.shape(idx_fea_C)[0] > 10:
                     fea_Cx_new = self.pcd_new[idx_fea_C, 0].reshape((-1, 1))
                     fea_Cy_new = self.pcd_new[idx_fea_C, 1].reshape((-1, 1))
@@ -434,20 +434,22 @@ class pcd_opreator_system(object):
                 print("Line2 RANSAC False")
         return x2, y2, mean_line2, idx_x2_in_X0, line2_success
 
-    def show_(self, ax, pcd_color='r', id=0, p_text=0.1):
+    def show_(self, ax, pcd_color='r', id=0, p_text=0.1, p_pcd=None):
+        if p_pcd is None:
+            p_pcd = [0, 0]
         if self.fea_extra_over:
-            ax.scatter(self.pcd_new[0:-1:10, 0], self.pcd_new[0:-1:10, 1], color=pcd_color, alpha=0.1)
+            ax.scatter(self.pcd_new[0:-1:10, 0]+p_pcd[0], self.pcd_new[0:-1:10, 1]+p_pcd[1], color=pcd_color, alpha=0.1)
             if self.num_line == 2:
-                ax.plot(self.stair_low_x, self.stair_low_y, color='black', linewidth=2)
-                ax.plot(self.stair_high_x, self.stair_high_y, color='black', linewidth=2)
+                ax.plot(self.stair_low_x+p_pcd[0], self.stair_low_y+p_pcd[1], color='black', linewidth=2)
+                ax.plot(self.stair_high_x+p_pcd[0], self.stair_high_y+p_pcd[1], color='black', linewidth=2)
             elif self.num_line == 1:
-                ax.plot(self.stair_low_x, self.stair_low_y, color='black', linewidth=2)
+                ax.plot(self.stair_low_x+p_pcd[0], self.stair_low_y+p_pcd[1], color='black', linewidth=2)
             if self.is_fea_A_gotten:
-                ax.scatter(self.fea_A[0:-1:5, 0], self.fea_A[0:-1:5, 1], color='m', linewidths=1)
+                ax.scatter(self.fea_A[0:-1:5, 0]+p_pcd[0], self.fea_A[0:-1:5, 1]+p_pcd[1], color='m', linewidths=1)
             if self.is_fea_B_gotten:
-                ax.scatter(self.fea_B[0:-1:5, 0], self.fea_B[0:-1:5, 1], color='g', linewidths=1)
+                ax.scatter(self.fea_B[0:-1:5, 0]+p_pcd[0], self.fea_B[0:-1:5, 1]+p_pcd[1], color='g', linewidths=1)
             if self.is_fea_C_gotten:
-                ax.scatter(self.fea_C[0:-1:5, 0], self.fea_C[0:-1:5, 1], color='y', linewidths=1)
+                ax.scatter(self.fea_C[0:-1:5, 0]+p_pcd[0], self.fea_C[0:-1:5, 1]+p_pcd[1], color='y', linewidths=1)
             ax.set_xlim(0, 1)
             ax.set_ylim(-1, 0)
             plt.text(p_text, -0.1, 'id: {}'.format(id))

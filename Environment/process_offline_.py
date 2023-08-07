@@ -1,12 +1,12 @@
 import os
 import cv2
+import matplotlib as mpl
 
 from Environment import *
 from alignment_knn import *
 from feature_extra_new import *
 from Utils.IO import fifo_data_vec
 from alignment import icp_alignment
-
 imu_buffer_path = "../Sensor/IM948/imu_buffer.npy"
 data_save_path = "/media/yuxuan/SSD/IMG_TEST/TEST4/"  # 3
 
@@ -20,6 +20,7 @@ pcd_os_buffer = [[], []]
 alignment_flag_buffer = [[], []]
 env_paras_buffer = [[], []]
 
+# 特征提取方法设置
 use_method1 = True
 if use_method1:
     traj_x = np.load("traj_x_method2.npy")
@@ -28,7 +29,16 @@ else:
     traj_x = np.load("traj_x_method1.npy")
     traj_y = np.load("traj_y_method1.npy")
 
+# 重构参数设置
+use_multi_frame_rebuild = False
+num_frame_rebuild = 3
+pcd_multi_build_buffer = []
+for i in range(num_frame_rebuild):
+    pcd_multi_build_buffer.append(np.zeros((0, 2)))
+
+# 画图设置
 plot_3d = True
+
 
 
 def add_type(img, env_type):
@@ -40,23 +50,44 @@ def add_type(img, env_type):
         cv2.putText(img, "{}".format(env_type), (40, 50), cv2.FONT_HERSHEY_PLAIN, 2.0, (0, 0, 255), 2)
 
 
-def add_collision(xc, yc, w, h, ax, p=None):
+def add_collision(ax, xc, yc, w, h, p=None):
     if p is None:
         p = [0, 0]
-    ax.plot3D([-0.3, 0.3], [xc - w + p[0], xc - w + p[0]], [yc - 1.5 * h + p[1], yc - 1.5 * h + p[1]], color='r',
-              linewidth=4)
-    ax.plot3D([-0.3, 0.3], [xc + p[0], xc + p[0]], [yc + 0.5 * h + p[1], yc + 0.5 * h + p[1]], color='r', linewidth=4)
-    ax.plot3D([-0.3, 0.3], [xc + p[0], xc + p[0]], [yc - 1.5 * h + p[1], yc - 1.5 * h + p[1]], color='r', linewidth=4)
-    ax.plot3D([-0.3, 0.3], [xc + w + p[0], xc + w + p[0]], [yc + 0.5 * h + p[1], yc + 0.5 * h + p[1]], color='r',
-              linewidth=4)
+    ax.plot3D([-0.3, 0.3], [xc - w + p[0], xc - w + p[0]], [yc - 1.5 * h + p[1], yc - 1.5 * h + p[1]], color='c',
+              linewidth=1)
+    ax.plot3D([-0.3, 0.3], [xc + p[0], xc + p[0]], [yc + 0.5 * h + p[1], yc + 0.5 * h + p[1]], color='c', linewidth=1)
+    ax.plot3D([-0.3, 0.3], [xc + p[0], xc + p[0]], [yc - 1.5 * h + p[1], yc - 1.5 * h + p[1]], color='c', linewidth=1)
+    ax.plot3D([-0.3, 0.3], [xc + w + p[0], xc + w + p[0]], [yc + 0.5 * h + p[1], yc + 0.5 * h + p[1]], color='c',
+              linewidth=1)
     ax.plot3D([0.3, 0.3, 0.3, 0.3], [xc - w + p[0], xc + p[0], xc + p[0], xc + w + p[0]],
               [yc - 1.5 * h + p[1], yc - 1.5 * h + p[1], yc + 0.5 * h + p[1], yc + 0.5 * h + p[1]],
-              color='r',
-              linewidth=4)
+              color='c',
+              linewidth=1)
     ax.plot3D([-0.3, -0.3, -0.3, -0.3], [xc - w + p[0], xc + p[0], xc + p[0], xc + w + p[0]],
               [yc - 1.5 * h + p[1], yc - 1.5 * h + p[1], yc + 0.5 * h + p[1], yc + 0.5 * h + p[1]],
-              color='r',
-              linewidth=4)
+              color='c',
+              linewidth=1)
+
+
+def add_pcd3d(ax, pcd2d, camera_pos, linewidth=1, color='r', alpha=1):
+    pcd3d = pcd2d_to_3d(pcd2d)
+    xx = pcd3d[:, 0]
+    yy = pcd3d[:, 1] + camera_pos[0]
+    zz = pcd3d[:, 2] + camera_pos[1]
+    ax.plot3D(xx[0:-1:51],
+              yy[0:-1:51],
+              zz[0:-1:51],
+              linewidth=linewidth,
+              color=color,
+              alpha=alpha)
+
+
+def add_camera_trajectory(ax, camera_x, camera_y, linewidth=1, color='r'):
+    ax.plot3D(np.zeros(np.shape(camera_x)[0]),
+              camera_x,
+              camera_y,
+              linewidth=linewidth,
+              color=color)
 
 
 def pcd2d_to_3d(pcd_2d, num_rows=5):
@@ -79,7 +110,7 @@ if __name__ == "__main__":
     imu_data = imu_data[1:, :]
     idx_frame = np.arange(np.shape(imu_data)[0])
 
-    fig = plt.figure(figsize=(6, 6))
+    fig = plt.figure(figsize=(10, 10))
     if plot_3d:
         ax = plt.axes(projection='3d')
     else:
@@ -117,7 +148,7 @@ if __name__ == "__main__":
             xc, yc, w, h = pcd_pre_os.fea_to_env_paras()
             env_paras_buffer = fifo_data_vec(env_paras_buffer, [xc, yc, w, h])
         else:
-            pcd_pre_os = pcd_os_buffer[-1]
+            pcd_pre_os = pcd_os_buffer[-1]  # type: pcd_opreator_system
             pcd_pre = pcd_pre_os.pcd_new
             pcd_new_os = pcd_opreator_system(pcd_new=pcd_new)
             # 特征提取
@@ -130,7 +161,7 @@ if __name__ == "__main__":
             # icp配准
             xmove_method1, ymove_method1 = 0, 0
             try:
-                xmove_method1, ymove_method1 = icp(pcd_s=fea_to_align_pre,
+                xmove_method1, ymove_method1 = icp_knn(pcd_s=fea_to_align_pre,
                                                    pcd_t=fea_to_align_new)
                 print("xmove1={},ymove1={}".format(xmove_method1, ymove_method1))
             except Exception as e:
@@ -169,113 +200,127 @@ if __name__ == "__main__":
             xmove_pre = camera_dx_buffer[-1]
             ymove_pre = camera_dy_buffer[-1]
 
-            if flag == 1 or abs(xmove) > 0.05 or abs(ymove) > 0.05:
+            if flag == 1 or abs(xmove) > 0.1 or abs(ymove) > 0.1:
                 xmove = xmove_pre
                 ymove = ymove_pre
                 print("对齐失败，使用上一次的xmove_pre = {},ymove_pre = {}".format(xmove_pre, ymove_pre))
 
             print("当前最终xmove = {}, ymove = {}".format(xmove, ymove))
-            print("参考最终xmove = {}, ymove = {}".format(traj_x[i] - traj_x[i - 1], traj_y[i] - traj_y[i - 1]))
+            # print("参考最终xmove = {}, ymove = {}".format(traj_x[i] - traj_x[i - 1], traj_y[i] - traj_y[i - 1]))
             camera_dx_buffer.append(xmove)
             camera_dy_buffer.append(ymove)
             camera_x_buffer.append(camera_x_buffer[-1] + xmove)
             camera_y_buffer.append(camera_y_buffer[-1] + ymove)
 
             # 地形重构
-            xc_pre, yc_pre, w_pre, h_pre = env_paras_buffer[-1][0], env_paras_buffer[-1][1], \
-                env_paras_buffer[-1][2], env_paras_buffer[-1][3]
-            xc_new, yc_new, w_new, h_new = 0, 0, 0, 0
-            if use_method1:
-                xc_new, yc_new, w_new, h_new = pcd_new_os.fea_to_env_paras()
-            else:
-                xc_new, yc_new, w_new, h_new = env.get_fea_sa()
+            if use_multi_frame_rebuild:
+                if i > num_frame_rebuild:
+                    pcd_total = np.zeros((0, 2))
+                    pcd_multi_build_buffer = fifo_data_vec(pcd_multi_build_buffer, pcd_new)
+                    for j in range(num_frame_rebuild):
+                        x_j = camera_x_buffer[j - num_frame_rebuild]
+                        y_j = camera_y_buffer[j - num_frame_rebuild]
+                        pcd_temp = np.copy(pcd_multi_build_buffer[j])
+                        pcd_temp[:, 0] += x_j
+                        pcd_temp[:, 1] += y_j
+                        pcd_total = np.vstack([pcd_total, pcd_temp])
+                    if use_method1:
+                        pcd_multi_build_os = pcd_opreator_system(pcd_new=pcd_new)
+                        pcd_multi_build_os.get_fea(env_type=env.type_pred_from_nn, _print_=False)
+                        pcd_multi_build_os.show_(ax, pcd_color='c')
+                        xc_new, yc_new, w_new, h_new = pcd_multi_build_os.fea_to_env_paras()
+                        print("multi_pcd_corner_situation:{}".format(pcd_multi_build_os.corner_situation))
+                    else:
+                        env_multi = Environment()
+                        env_multi.pcd_thin = pcd_total
+                        xc_new, yc_new, w_new, h_new = env_multi.get_fea_sa()
 
-            if abs(xc_new*yc_new*h_new*w_new) > 0.01:
-                env_paras_buffer = fifo_data_vec(env_paras_buffer, [xc_new, yc_new, w_new, h_new])
+                    if abs(xc_new * yc_new * h_new * w_new) > 0.01:
+                        env_paras_buffer = fifo_data_vec(env_paras_buffer, [xc_new, yc_new, w_new, h_new])
+                    else:
+                        xc_pre, yc_pre, w_pre, h_pre = env_paras_buffer[-1][0], env_paras_buffer[-1][1], \
+                            env_paras_buffer[-1][2], env_paras_buffer[-1][3]
+                        if abs(xc_new * yc_new) <= 0.001:
+                            xc_new, yc_new, w_new, h_new = xc_pre, yc_pre, w_pre, h_pre
+                            env_paras_buffer = fifo_data_vec(env_paras_buffer, [xc_new, yc_new, w_new, h_new])
+                        else:
+                            if w_new < 0.01:
+                                w_new = w_pre
+                            if h_new < 0.01:
+                                h_new = h_pre
+                            env_paras_buffer = fifo_data_vec(env_paras_buffer, [xc_new, yc_new, w_new, h_new])
+
             else:
-                if abs(xc_new*yc_new) <= 0.001:
-                    xc_new, yc_new, w_new, h_new  = xc_pre, yc_pre, w_pre, h_pre
+                if use_method1:
+                    # todo: pcd_new_os.fea_to_env_paras()有时算出的h过小
+                    xc_new, yc_new, w_new, h_new = pcd_new_os.fea_to_env_paras()
+                    # xc_new, yc_new, w_new, h_new = env.get_fea_sa()
+                else:
+                    xc_new, yc_new, w_new, h_new = env.get_fea_sa()
+                if abs(xc_new * yc_new * h_new * w_new) > 0.01:
                     env_paras_buffer = fifo_data_vec(env_paras_buffer, [xc_new, yc_new, w_new, h_new])
                 else:
-                    if w_new < 0.01:
-                        w_new = w_pre
-                    if h_new < 0.01:
-                        h_new = h_pre
-                    env_paras_buffer = fifo_data_vec(env_paras_buffer, [xc_new, yc_new, w_new, h_new])
+                    xc_pre, yc_pre, w_pre, h_pre = env_paras_buffer[-1][0], env_paras_buffer[-1][1], \
+                        env_paras_buffer[-1][2], env_paras_buffer[-1][3]
+                    if abs(xc_new * yc_new) <= 0.001:
+                        xc_new, yc_new, w_new, h_new = xc_pre, yc_pre, w_pre, h_pre
+                        env_paras_buffer = fifo_data_vec(env_paras_buffer, [xc_new, yc_new, w_new, h_new])
+                    else:
+                        if w_new < 0.01:
+                            w_new = w_pre
+                        if h_new < 0.01:
+                            h_new = h_pre
+                        env_paras_buffer = fifo_data_vec(env_paras_buffer, [xc_new, yc_new, w_new, h_new])
+
 
             # 画图
             if plot_3d:
-                pcd3d_new = pcd2d_to_3d(pcd_new)
-                pcd3d_pre = pcd2d_to_3d(pcd_pre)
-                xx = pcd3d_pre[:, 0]
-                yy = pcd3d_pre[:, 1] + camera_x_buffer[-2]
-                zz = pcd3d_pre[:, 2] + camera_y_buffer[-2]
-                ax.plot3D(xx[0:-1:51],
-                          yy[0:-1:51],
-                          zz[0:-1:51],
-                          linewidth=5,
-                          color=plt.cm.jet(50),
-                          alpha=0.5)
-                xx = pcd3d_new[:, 0]
-                yy = pcd3d_new[:, 1] + camera_x_buffer[-1]
-                zz = pcd3d_new[:, 2] + camera_y_buffer[-1]
-                ax.plot3D(xx[0:-1:51],
-                          yy[0:-1:51],
-                          zz[0:-1:51],
-                          linewidth=1,
-                          color='blue')
-                ax.plot3D(np.zeros((len(camera_x_buffer, ))),
-                          np.array(camera_x_buffer),
-                          np.array(camera_y_buffer),
-                          color='b')
-                # xx = pcd3d_pre[:, 0]
-                # yy = pcd3d_pre[:, 1] + traj_x[i - 1]
-                # zz = pcd3d_pre[:, 2] + traj_y[i - 1] - 0.2
-                # ax.plot3D(xx[0:-1:51],
-                #           yy[0:-1:51],
-                #           zz[0:-1:51],
-                #           linewidth=5,
-                #           color=plt.cm.jet(220),
-                #           alpha=0.5)
-                #
-                # xx = pcd3d_new[:, 0]
-                # yy = pcd3d_new[:, 1] + traj_x[i]
-                # zz = pcd3d_new[:, 2] + traj_y[i] - 0.2
-                # ax.plot3D(xx[0:-1:51],
-                #           yy[0:-1:51],
-                #           zz[0:-1:51],
-                #           linewidth=1,
-                #           color='red')
-                # ax.plot3D(np.zeros((len(camera_x_buffer, ) - 1)),
-                #           traj_x[0:i],
-                #           traj_y[0:i],
-                #           color='red')
-                # ax.text(0.5, 1.8, 1.8, "corner_situation:{},id:{}".format(corner_new, i))
-                # ax.text(0.5, 1.8, 1.2, "corner_pre:{},id:{}".format(corner_buffer[-2], i - 1))
-                # if use_method1:
-                #     ax.text(0.5, 0.2, 1.2, "method: new feature extraction", color='b')
-                #     ax.text(0.5, 0.2, 1.0, "method: previous feature extraction", color='r')
-                # else:
-                #     ax.text(0.5, 0.2, 1.2, "method: previous feature extraction", color='b')
-                #     ax.text(0.5, 0.2, 1.0, "method: new feature extraction", color='r')
+                light_blue = mpl.cm.jet(50)
+                light_red = mpl.cm.jet(220)
+                add_pcd3d(ax, pcd_new, camera_pos=[camera_x_buffer[-1], camera_y_buffer[-1]], linewidth=1, color='blue')
+                add_pcd3d(ax, pcd_pre, camera_pos=[camera_x_buffer[-2], camera_y_buffer[-2]], linewidth=5,
+                          color=light_blue, alpha=0.2)
+                add_camera_trajectory(ax, camera_x=np.array(camera_x_buffer), camera_y=np.array(camera_y_buffer),
+                                      color='blue')
 
-                # if flag_method1 == 1:
-                #     ax.text(0.5, 1.3, -0.5, "method new fails times:{}".format(sum(alignment_flag_buffer[0])), color='y')
-                # else:
-                #     ax.text(0.5, 1.3, -0.5, "method new fails times:{}".format(sum(alignment_flag_buffer[0])), color='g')
-                #
-                # if flag_method2 == 1:
-                #     ax.text(0.5, 1.3, -0.8, "method pre fails times:{}".format(sum(alignment_flag_buffer[1])), color='y')
-                # else:
-                #     ax.text(0.5, 1.3, -0.8, "method pre fails times:{}".format(sum(alignment_flag_buffer[1])), color='g')
-                add_collision(xc_new + camera_x_buffer[-1], yc_new + camera_y_buffer[-1], w_new, h_new, ax)
+                # add_pcd3d(ax, pcd_new, camera_pos=[traj_x[i], traj_y[i] - 0.2], linewidth=1, color='red')
+                # add_pcd3d(ax, pcd_pre, camera_pos=[traj_x[i - 1], traj_y[i - 1] - 0.2], linewidth=1, color= plt.cm.jet(220),alpha=0.2)
+                # add_camera_trajectory(ax, camera_x=traj_x[0:i], camera_y=traj_y[0:i], color='red')
+
+                if use_multi_frame_rebuild:
+                    if i > num_frame_rebuild:
+                        add_collision(ax, xc_new + camera_x_buffer[-1], yc_new + camera_y_buffer[-1], w_new, h_new)
+                else:
+                    add_collision(ax, xc_new + camera_x_buffer[-1], yc_new + camera_y_buffer[-1], w_new, h_new)
+                ax.text(0.5, 1.8, 1.8, "corner_situation:{},id:{}".format(pcd_new_os.corner_situation, i))
+                ax.text(0.5, 1.8, 1.2, "corner_pre:{},id:{}".format(pcd_pre_os.corner_situation, i - 1))
+                if use_method1:
+                    ax.text(0.5, 0.2, 1.2, "method: new feature extraction", color='b')
+                    ax.text(0.5, 0.2, 1.0, "method: previous feature extraction", color='r')
+                else:
+                    ax.text(0.5, 0.2, 1.2, "method: previous feature extraction", color='b')
+                    ax.text(0.5, 0.2, 1.0, "method: new feature extraction", color='r')
+
+                if flag_method1 == 1:
+                    ax.text(0.5, 1.3, -0.5, "method new fails times:{}".format(sum(alignment_flag_buffer[0])),
+                            color='y')
+                else:
+                    ax.text(0.5, 1.3, -0.5, "method new fails times:{}".format(sum(alignment_flag_buffer[0])),
+                            color='g')
+
+                if flag_method2 == 1:
+                    ax.text(0.5, 1.3, -0.8, "method pre fails times:{}".format(sum(alignment_flag_buffer[1])),
+                            color='y')
+                else:
+                    ax.text(0.5, 1.3, -0.8, "method pre fails times:{}".format(sum(alignment_flag_buffer[1])),
+                            color='g')
                 ax.set_xlim(-1, 1)
                 ax.set_ylim(0, 3)
                 ax.set_zlim(-1, 2)
-                ax.view_init(elev=20, azim=-15)
+                ax.view_init(elev=0, azim=0)
             else:
                 pcd_new_os.show_(ax, pcd_color='r', id=int(i))
-                # pcd_pre_os.show_(ax, pcd_color='b', id=int(i - 1), p_text=0)
+                pcd_pre_os.show_(ax, pcd_color='b', id=int(i - 1), p_text=0.4, p_pcd=[-xmove, -ymove])
                 ax.set_xlim(0, 1)
                 ax.set_ylim(-1, 0)
             plt.draw()

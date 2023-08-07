@@ -31,7 +31,7 @@ def align_fea(pcd_new: pcd_opreator_system,
                 pcd_to_align_new = np.vstack([pcd_to_align_new, pcd_new.fea_A[0:fea_len, :]])
                 pcd_to_align_pre = np.vstack([pcd_to_align_pre, pcd_pre.fea_C[0:fea_len, :]])
                 if _print_:
-                    print("fea_C of new pcd and fea_A of pre pcd:{}".format(fea_len))
+                    print("fea_A of new pcd and fea_C of pre pcd:{}".format(fea_len))
                 fea_component_new = [fea_len, 0, 0]
                 fea_component_pre = [0, 0, fea_len]
                 pcd_align_flag = 0
@@ -61,7 +61,7 @@ def align_fea(pcd_new: pcd_opreator_system,
                     print("fea_C and fea_C")
                 fea_component_new[2] = fea_len
                 fea_component_pre[2] = fea_len
-            if np.shape(pcd_to_align_new)[0] < 50:
+            if np.shape(pcd_to_align_new)[0] < 30:
                 pcd_align_flag = 1
             else:
                 pcd_align_flag = 0
@@ -84,7 +84,7 @@ def del_miss(indeces, dist, max_dist, th_rate=0.7):
     return np.array(indeces[:][np.where(dist[:] < th_dist)[0]])
 
 
-def icp(pcd_s, pcd_t, max_iterate=50):
+def icp_knn(pcd_s, pcd_t, max_iterate=50):
     min_len = min(np.shape(pcd_s)[0], np.shape(pcd_t)[0])
     pcd_s_temp = pcd_s[0:min_len, :].astype(np.float32)
     pcd_t_temp = pcd_t[0:min_len, :].astype(np.float32)

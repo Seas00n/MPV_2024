@@ -1,8 +1,6 @@
 import open3d as o3d
 import copy
-import matplotlib.pyplot as plt
-import os
-from my_feature import *
+from Environment.backup.my_feature import *
 
 
 def pcd2d_to_3d(pcd_2d, num_rows=5):

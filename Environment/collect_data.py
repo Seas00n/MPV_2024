@@ -11,7 +11,7 @@ import os
 
 totaltimestep = 1000
 pcd_data = np.zeros((38528, 3))
-pcd_data_temp = np.zeros((38528,3))
+pcd_data_temp = np.zeros((38528, 3))
 
 
 def pcd_handler(channel, data):
@@ -25,12 +25,17 @@ def pcd_handler(channel, data):
 
 env = Environment()
 
+
+
+
+
 imu_buffer_path = "../Sensor/IM948/imu_buffer.npy"
 data_save_path = "/media/yuxuan/SSD/IMG_TEST/TEST12/"
 img_list = os.listdir(data_save_path)
-str = input("按回车清除目录："+data_save_path)
+str = input("按回车清除目录：" + data_save_path)
 for f in img_list:
     os.remove(data_save_path + f)
+
 
 if __name__ == "__main__":
     imu_buffer = np.memmap(imu_buffer_path, dtype='float32', mode='r',

@@ -97,15 +97,15 @@ if __name__ == "__main__":
                 pcd_to_align_pre = pcd_pre[idx_chosen, :]
                 pcd_component_new = [200, 200, 200]
                 pcd_component_pre = [200, 200, 200]
-            reg = open3d_alignment(pcd_s=pcd_to_align_pre, pcd_t=pcd_to_align_new)
-            trans = reg.alignment()
-            dx = -trans[1, 3]
-            dy = -trans[2, 3]
-            # dx, dy = icp(pcd_s=pcd_to_align_pre, pcd_t=pcd_to_align_new,
-            #              pcd_s_component=pcd_component_pre,
-            #              pcd_t_component=pcd_component_new)
-            # print(dx)
-            # print(dy)
+            # reg = open3d_alignment(pcd_s=pcd_to_align_pre, pcd_t=pcd_to_align_new)
+            # trans = reg.alignment()
+            # dx = -trans[1, 3]
+            # dy = -trans[2, 3]
+            dx, dy = icp(pcd_s=pcd_to_align_pre, pcd_t=pcd_to_align_new,
+                         pcd_s_component=pcd_component_pre,
+                         pcd_t_component=pcd_component_new)
+            print(dx)
+            print(dy)
 
             plt.scatter(pcd_new[0:-1:20, 0], pcd_new[0:-1:20, 1], color='red')
             plt.scatter(pcd_pre[0:-1:20, 0] - dx, pcd_pre[0:-1:20, 1] - dy, color='blue')
@@ -133,4 +133,4 @@ if __name__ == "__main__":
         plt.draw()
         if i == 1:
             plt.pause(5)
-        plt.pause(0.01)
+        plt.pause(0.1)
