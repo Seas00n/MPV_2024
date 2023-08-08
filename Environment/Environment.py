@@ -42,7 +42,7 @@ class Environment:
         self.classification_model = torch.load('/home/yuxuan/Project/CCH_Model/realworld_model_epoch_29.pt',
                                                map_location=torch.device('cpu'))
         self.type_pred_from_nn = Env_Type.Levelground
-        self.type_pred_buffer = np.zeros(5, dtype=np.uint64)
+        self.type_pred_buffer = np.zeros(3, dtype=np.uint64)
         self.pcd_2d = np.zeros([0, 2])
         self.pcd_thin = np.zeros([0, 2])
         self.img_binary = np.zeros((100, 100)).astype('uint8')
@@ -126,11 +126,13 @@ class Environment:
         idx_remove = np.where(ymax - self.pcd_thin[:, 1] < 0.02)[0]
         if 0 < len(idx_remove) < 10:
             self.pcd_thin = np.delete(self.pcd_thin, idx_remove, axis=0)
-        mean = np.mean(self.pcd_thin[:, 0])
-        sigma = np.std(self.pcd_thin[:, 0])
-        idx_remove = np.where(abs(self.pcd_thin[:, 0] - mean) > 3 * sigma)
+        mean_x = np.mean(self.pcd_thin[:, 0])
+        sigma_x = np.std(self.pcd_thin[:, 0])
+        mean_y = np.mean(self.pcd_thin[:, 1])
+        sigma_y = np.std(self.pcd_thin[:, 1])
+        idx_remove = np.logical_and(np.abs(self.pcd_thin[:, 0] - mean_x) > 3 * sigma_x,
+                                    np.abs(self.pcd_thin[:, 1] - mean_y) > 3 * sigma_y)
         self.pcd_thin = np.delete(self.pcd_thin, idx_remove, axis=0)
-
     def get_fea_sa(self):
         xc = yc = w = h = 0
         X = self.pcd_thin[:, 0]

@@ -21,12 +21,128 @@ class pcd_opreator_system(object):
         self.num_line = 0
         self.fea_extra_over = False
 
-    def get_fea(self, env_type, _print_=False, ax=None, idx=0):
-        if env_type == 1:
-            self.get_fea_sa(_print_=_print_, ax=ax, idx = idx)
-        self.fea_extra_over = True
+    def get_fea(self, _print_=False, ax=None, idx=0):
+        env_type = self.get_env_type_up_or_down(ax=ax)
+        if _print_:
+            print("Env_Type:{}".format(env_type))
+        # if env_type == 1:
+        #     self.get_fea_sa(_print_=_print_, ax=ax, idx=idx)
+        # elif env_type == 2:
+        #     self.get_fea_sd(_print_=_print_, ax=ax, idx=idx)
+        # self.fea_extra_over = True
 
-    def get_fea_sa(self, _print_=False, ax=None, idx = 0):
+    def get_env_type_up_or_down(self, ax=None):
+        env_type = 0
+        # todo: 可以汇总非ransac的直线提取函数
+        ymax = np.max(self.pcd_new[:, 1])
+        line_highest = self.pcd_new[np.where(np.abs(self.pcd_new[:, 1] - ymax) < 0.01)[0], :]
+        y_line_hest = np.nanmean(line_highest[:, 1])
+        xmin_line_hest = line_highest[np.argmin(line_highest[:, 0]), 0]
+        xmax_line_hest = line_highest[np.argmax(line_highest[:, 0]), 0]
+        idx_right_part = np.where(self.pcd_new[:, 0] > xmax_line_hest)
+        idx_left_part = np.where(self.pcd_new[:, 0] < xmin_line_hest)
+        if np.shape(idx_right_part)[0] == 0:
+            check_right = False
+        if np.shape(idx_left_part)[0] == 0:
+            check_left = False
+        if not check_right and not check_left:
+            env_type = 0
+            return env_type
+        elif not check_left and check_right:
+            ymin_right = np.min(self.pcd_new[idx_right_part, 1])
+            line_lowest = self.pcd_new[np.where(np.abs(self.pcd_new[:, 1] - ymin_right) < 0.01)[0], :]
+            y_line_lest = np.nanmean(line_lowest[:, 1])
+            x_line_lest = line_lowest[np.argmax(line_lowest[:, 0]), 0]
+            if abs(y_line_hest - y_line_lest) < 0.01:
+                env_type = 0
+                return env_type
+            elif y_line_hest - y_line_lest > 0.1 and x_line_lest - xmax_line_hest > 0.03:
+                env_type = 2
+                return env_type
+            else:
+                return 0
+        elif not check_right and check_left:
+            ymin_left = np.min(self.pcd_new[idx_left_part, 1])
+            line_lowest = self.pcd_new[np.where(np.abs(self.pcd_new[:, 1] - ymin_left) < 0.01)[0], :]
+            y_line_lest = np.nanmean(line_lowest[:, 1])
+            x_line_lest = line_lowest[np.argmin(line_lowest[:, 0]), 0]
+            if abs(y_line_hest - y_line_lest) < 0.01:
+                env_type = 0
+                return env_type
+            elif y_line_hest - y_line_lest > 0.1 and xmin_line_hest - x_line_lest > 0.03:
+                env_type = 2
+                return env_type
+            else:
+                return 0
+        elif check_right and check_left:
+            ymin_right = np.min(self.pcd_new[idx_right_part, 1])
+            line_lowest = self.pcd_new[idx_right_part]
+            line_lowest = self.pcd_new[np.where(np.abs(self.pcd_new[idx_right_part, 1] - ymin_right) < 0.01)[0], :]
+            y_right_lest = np.nanmean(line_lowest[:, 1])
+            x_right_lest = line_lowest[np.argmax(line_lowest[:, 0]), 0]
+            ymin_left = np.min(self.pcd_new[idx_left_part, 1])
+            line_lowest = self.pcd_new[np.where(np.abs(self.pcd_new[idx_right_part, 1] - ymin_left) < 0.01)[0], :]
+            y_left_lest = np.nanmean(line_lowest[:, 1])
+            x_left_lest = line_lowest[np.argmin(line_lowest[:, 0]), 0]
+            if y_line_hest - y_left_lest > 0.1 and y_line_hest - y_right_lest > 0.1 and abs(
+                    y_left_lest - y_right_lest) < 0.03:
+                if xmin_line_hest - x_left_lest > 0.03 and x_right_lest - xmax_line_hest > 0.03:
+                    env_type = 3
+                    return env_type
+            elif abs(y_line_hest - y_right_lest) < 0.02 and y_line_hest - ymin_left > 0.1:
+                if xmin_line_hest - x_left_lest > 0.2:
+                    env_type = 1
+                    return env_type
+            elif abs(y_line_hest - y_left_lest) < 0.02 and y_line_hest - ymin_right > 0.1:
+                if x_right_lest - xmax_line_hest > 0.2:
+                    env_type = 2
+                    return env_type
+            elif abs(y_line_hest - y_left_lest) < 0.02 and abs(y_line_hest - y_right_lest) < 0.02:
+                env_type = 0
+                return env_type
+        return 0
+
+        # ymax = np.max(self.pcd_new[:, 1])
+        # x_ymax = self.pcd_new[np.argmax(self.pcd_new[:, 1]), 0]
+        # part_left = self.pcd_new[np.where(x_ymax - self.pcd_new[:, 0] > 0.03)[0], :]
+        # part_right = self.pcd_new[np.where(self.pcd_new[:, 0] - x_ymax > 0.03)[0], :]
+        # if np.shape(part_right)[0] == 0:
+        #     env_type = 1
+        #     return env_type
+        # elif np.shape(part_left)[0] == 0:
+        #     env_type = 2
+        #     return env_type
+        # idx_right_max = np.argmax(part_right[:, 0])
+        # x_ymin_right = part_right[idx_right_max, 0]
+        # ymin_right = part_right[idx_right_max, 1]
+        # idx_left_min = np.argmin(part_left[:, 0])
+        # x_ymin_left = part_left[idx_left_min, 0]
+        # ymin_left = part_left[idx_left_min, 1]
+        # if ax is not None:
+        #     ax.scatter(x_ymax, ymax, color='b', linewidths=5)
+        #     ax.scatter(x_ymin_left, ymin_left, color='c', linewidths=5)
+        #     ax.scatter(x_ymin_right, ymin_right, color='c', linewidths=5)
+        # print("ymax-ymin_right:{}>0.1".format(ymax - ymin_right))
+        # print("ymax-ymin_left:{}>0.1".format(ymax - ymin_left))
+        # print("x_ymin_right-x_ymax:{}>0.2".format(x_ymin_right - x_ymax))
+        # print("x_ymax-x_ymin_left:{}>0.2".format(x_ymax - x_ymin_left))
+        # if ymax - ymin_right > 0.1 and ymax - ymin_left > 0.1 and abs(ymin_right - ymin_left) < 0.03:
+        #     if x_ymax - x_ymin_left > 0.02 and x_ymin_right - x_ymax > 0.02:
+        #         env_type = 3  # ob
+        # if abs(ymax - ymin_right) < 0.02 and ymax - ymin_left > 0.1:
+        #     if x_ymax - x_ymin_left > 0.2:
+        #         env_type = 1  # sa
+        # if abs(ymax - ymin_left) < 0.02 and ymax - ymin_right > 0.1:
+        #     if x_ymin_right - x_ymax > 0.2:
+        #         env_type = 2  # sd
+        # if abs(ymax - ymin_left) < 0.02 and abs(ymax - ymin_left) < 0.02:
+        #     env_type = 0
+        # return env_type
+
+    def get_fea_sd(self, _print_=False, ax=None, idx=0):
+        return
+
+    def get_fea_sa(self, _print_=False, ax=None, idx=0):
         line1_success = False
         x1, y1, idx1 = [], [], []
         mean_line1 = 0
@@ -259,7 +375,15 @@ class pcd_opreator_system(object):
         self.has_part_under_line = False
         print("Under_line:{}".format(np.nanmean(stair_low_y) - ymin))
         if np.nanmean(stair_low_y) - ymin > 0.02:
-            self.has_part_under_line = True
+            idx_under = np.logical_and(self.pcd_new[:, 1] < np.nanmean(stair_low_y),
+                                       np.abs(self.pcd_new[:, 0] - np.min(stair_low_x)) < 0.015)
+            under_normal_part = self.pcd_new[idx_under, :]
+            diff_under = np.diff(under_normal_part, axis=0)
+            idx_continuous = np.where(np.abs(diff_under) < 0.005)[0]
+            under_continuous_part = under_normal_part[idx_continuous, :]
+            if np.shape(idx_continuous)[0] > 10 and np.nanmean(stair_low_y) - np.min(
+                    under_continuous_part[:, 1]) > 0.02:
+                self.has_part_under_line = True
         else:
             self.has_part_under_line = False
 
@@ -287,8 +411,14 @@ class pcd_opreator_system(object):
         self.has_part_up_line = False
         print("Up_line:{}".format(ymax - np.nanmean(stair_high_y)))
         if ymax - np.nanmean(stair_high_y) > 0.02:
-            self.has_part_up_line = True
-            print("Up_line_Part find")
+            idx_up = np.logical_and(self.pcd_new[:, 1] > np.nanmean(stair_high_y),
+                                    np.abs(self.pcd_new[:, 0] - np.max(stair_high_x)) < 0.015)
+            up_normal_part = self.pcd_new[idx_up, :]
+            diff_up = np.diff(up_normal_part, axis=0)
+            idx_continuous = np.where(np.abs(diff_up) < 0.005)[0]
+            up_continuous_part = up_normal_part[idx_continuous, :]
+            if np.shape(idx_continuous)[0] > 10 and np.max(up_continuous_part[:, 1]) - np.nanmean(stair_high_y) > 0.02:
+                self.has_part_up_line = True
         else:
             self.has_part_up_line = False
 
@@ -437,22 +567,23 @@ class pcd_opreator_system(object):
     def show_(self, ax, pcd_color='r', id=0, p_text=0.1, p_pcd=None):
         if p_pcd is None:
             p_pcd = [0, 0]
+        ax.scatter(self.pcd_new[0:-1:10, 0] + p_pcd[0], self.pcd_new[0:-1:10, 1] + p_pcd[1], color=pcd_color,
+                   alpha=0.1)
+        plt.text(p_text, -0.1, 'id: {}'.format(id))
         if self.fea_extra_over:
-            ax.scatter(self.pcd_new[0:-1:10, 0]+p_pcd[0], self.pcd_new[0:-1:10, 1]+p_pcd[1], color=pcd_color, alpha=0.1)
             if self.num_line == 2:
-                ax.plot(self.stair_low_x+p_pcd[0], self.stair_low_y+p_pcd[1], color='black', linewidth=2)
-                ax.plot(self.stair_high_x+p_pcd[0], self.stair_high_y+p_pcd[1], color='black', linewidth=2)
+                ax.plot(self.stair_low_x + p_pcd[0], self.stair_low_y + p_pcd[1], color='black', linewidth=2)
+                ax.plot(self.stair_high_x + p_pcd[0], self.stair_high_y + p_pcd[1], color='black', linewidth=2)
             elif self.num_line == 1:
-                ax.plot(self.stair_low_x+p_pcd[0], self.stair_low_y+p_pcd[1], color='black', linewidth=2)
+                ax.plot(self.stair_low_x + p_pcd[0], self.stair_low_y + p_pcd[1], color='black', linewidth=2)
             if self.is_fea_A_gotten:
-                ax.scatter(self.fea_A[0:-1:5, 0]+p_pcd[0], self.fea_A[0:-1:5, 1]+p_pcd[1], color='m', linewidths=1)
+                ax.scatter(self.fea_A[0:-1:5, 0] + p_pcd[0], self.fea_A[0:-1:5, 1] + p_pcd[1], color='m', linewidths=1)
             if self.is_fea_B_gotten:
-                ax.scatter(self.fea_B[0:-1:5, 0]+p_pcd[0], self.fea_B[0:-1:5, 1]+p_pcd[1], color='g', linewidths=1)
+                ax.scatter(self.fea_B[0:-1:5, 0] + p_pcd[0], self.fea_B[0:-1:5, 1] + p_pcd[1], color='g', linewidths=1)
             if self.is_fea_C_gotten:
-                ax.scatter(self.fea_C[0:-1:5, 0]+p_pcd[0], self.fea_C[0:-1:5, 1]+p_pcd[1], color='y', linewidths=1)
-            ax.set_xlim(0, 1)
-            ax.set_ylim(-1, 0)
-            plt.text(p_text, -0.1, 'id: {}'.format(id))
+                ax.scatter(self.fea_C[0:-1:5, 0] + p_pcd[0], self.fea_C[0:-1:5, 1] + p_pcd[1], color='y', linewidths=1)
+            ax.set_xlim(-1, 1)
+            ax.set_ylim(-1, 1)
             plt.text(p_text, -0.2, 'corner: {}'.format(self.corner_situation))
 
     def fea_to_env_paras(self):

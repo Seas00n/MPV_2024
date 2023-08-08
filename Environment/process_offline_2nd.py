@@ -8,7 +8,7 @@ from feature_extra_new import *
 from Utils.IO import fifo_data_vec
 from alignment import icp_alignment
 imu_buffer_path = "../Sensor/IM948/imu_buffer.npy"
-data_save_path = "/media/yuxuan/SSD/IMG_TEST/TEST4/"  # 3
+data_save_path = "/media/yuxuan/SSD/IMG_TEST/TEST1/"  # 3
 
 env = Environment()
 env_type_buffer = []
@@ -37,7 +37,7 @@ for i in range(num_frame_rebuild):
     pcd_multi_build_buffer.append(np.zeros((0, 2)))
 
 # 画图设置
-plot_3d = True
+plot_3d = False
 
 
 
@@ -142,7 +142,7 @@ if __name__ == "__main__":
             env_type_buffer.append(env.type_pred_from_nn)
             pcd_pre_os = pcd_opreator_system(pcd_new=pcd_new)
             # 特征提取
-            pcd_pre_os.get_fea(env_type=env.type_pred_from_nn, _print_=True)
+            pcd_pre_os.get_fea(_print_=True)
             pcd_os_buffer = fifo_data_vec(pcd_os_buffer, pcd_pre_os)
             # 地形参数
             xc, yc, w, h = pcd_pre_os.fea_to_env_paras()
@@ -152,7 +152,7 @@ if __name__ == "__main__":
             pcd_pre = pcd_pre_os.pcd_new
             pcd_new_os = pcd_opreator_system(pcd_new=pcd_new)
             # 特征提取
-            pcd_new_os.get_fea(env_type=env.type_pred_from_nn, _print_=True, ax=None, idx=i)
+            pcd_new_os.get_fea(_print_=True, ax=None, idx=i)
             pcd_os_buffer = fifo_data_vec(pcd_os_buffer, pcd_new_os)
             # 特征组合
             fea_to_align_new, fea_to_align_pre, flag_method1 = align_fea(pcd_new=pcd_new_os,
@@ -226,7 +226,7 @@ if __name__ == "__main__":
                         pcd_total = np.vstack([pcd_total, pcd_temp])
                     if use_method1:
                         pcd_multi_build_os = pcd_opreator_system(pcd_new=pcd_new)
-                        pcd_multi_build_os.get_fea(env_type=env.type_pred_from_nn, _print_=False)
+                        pcd_multi_build_os.get_fea(_print_=False)
                         pcd_multi_build_os.show_(ax, pcd_color='c')
                         xc_new, yc_new, w_new, h_new = pcd_multi_build_os.fea_to_env_paras()
                         print("multi_pcd_corner_situation:{}".format(pcd_multi_build_os.corner_situation))
@@ -283,9 +283,10 @@ if __name__ == "__main__":
                 add_camera_trajectory(ax, camera_x=np.array(camera_x_buffer), camera_y=np.array(camera_y_buffer),
                                       color='blue')
 
-                # add_pcd3d(ax, pcd_new, camera_pos=[traj_x[i], traj_y[i] - 0.2], linewidth=1, color='red')
-                # add_pcd3d(ax, pcd_pre, camera_pos=[traj_x[i - 1], traj_y[i - 1] - 0.2], linewidth=1, color= plt.cm.jet(220),alpha=0.2)
-                # add_camera_trajectory(ax, camera_x=traj_x[0:i], camera_y=traj_y[0:i], color='red')
+                add_pcd3d(ax, pcd_new, camera_pos=[traj_x[i], traj_y[i] - 0.2], linewidth=1, color='red')
+                add_pcd3d(ax, pcd_pre, camera_pos=[traj_x[i - 1], traj_y[i - 1] - 0.2], linewidth=5,
+                          color=light_red, alpha=0.2)
+                add_camera_trajectory(ax, camera_x=traj_x[0:i], camera_y=traj_y[0:i], color='red')
 
                 if use_multi_frame_rebuild:
                     if i > num_frame_rebuild:
@@ -320,11 +321,11 @@ if __name__ == "__main__":
                 ax.view_init(elev=0, azim=0)
             else:
                 pcd_new_os.show_(ax, pcd_color='r', id=int(i))
-                pcd_pre_os.show_(ax, pcd_color='b', id=int(i - 1), p_text=0.4, p_pcd=[-xmove, -ymove])
-                ax.set_xlim(0, 1)
-                ax.set_ylim(-1, 0)
+                # pcd_pre_os.show_(ax, pcd_color='b', id=int(i - 1), p_text=0.4, p_pcd=[-xmove, -ymove])
+                ax.set_xlim(-1, 1)
+                ax.set_ylim(-1, 1)
             plt.draw()
-            plt.pause(0.01)
+            plt.pause(0.1)
 
     if use_method1:
         np.save("traj_x_method1.npy", np.array(camera_x_buffer))
