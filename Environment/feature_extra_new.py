@@ -139,7 +139,7 @@ class pcd_opreator_system(object):
         return 0
 
     def get_fea_sd(self, _print_=False, ax=None, idx=0):
-        return
+        return 
 
     def get_fea_ob(self, _print_=False, ax=None, idx=0):
         self.corner_situation = 8
@@ -147,9 +147,78 @@ class pcd_opreator_system(object):
         self.need_to_check_C = True
         self.need_to_check_D = True
 
+        if _print_:
+            print("B feature finding")
+        Bcenter_x = self.obs_low_x
+        Bcenter_y = self.obs_low_y
+        idx_fea_B = np.logical_and(np.abs(self.pcd_new[:, 0] - Bcenter_x) < 0.05,
+                                   np.abs(self.pcd_new[:, 1] - Bcenter_y) < 0.05)
+        if np.shape(idx_fea_B)[0] > 10:
+            fea_Bx_new = self.pcd_new[idx_fea_B, 0].reshape((-1, 1))
+            fea_By_new = self.pcd_new[idx_fea_B, 1].reshape((-1, 1))
+            if _print_:
+                print("find feature B:{},{}".format(Bcenter_x, Bcenter_y))
+        else:
+            mean_Bx = Bcenter_x
+            mean_By = Bcenter_y
+            rand = np.random.rand(20).reshape((-1, 1))
+            fea_Bx_new = mean_Bx + rand * 0.001
+            rand = np.random.rand(20).reshape((-1, 1))
+            fea_By_new = mean_By + rand * 0.001
+            if _print_:
+                print("complete feature B:{},{}".format(Bcenter_x, Bcenter_y))
+        self.Bcenter = np.array([Bcenter_x, Bcenter_y])
+        self.fea_B = np.hstack([fea_Bx_new, fea_By_new])
+        self.is_fea_B_gotten = True
 
+        if _print_:
+            print("C feature finding")
+        Ccenter_x = np.min(self.obs_high_level_x)
+        Ccenter_y = self.obs_high_mean_y
+        idx_fea_C = np.logical_and(np.abs(self.pcd_new[:, 0] - Ccenter_x) < 0.05,
+                                   np.abs(self.pcd_new[:, 1] - Ccenter_y) < 0.05)
 
+        if np.shape(idx_fea_C)[0] > 10:
+            fea_Cx_new = self.pcd_new[idx_fea_C, 0].reshape((-1, 1))
+            fea_Cy_new = self.pcd_new[idx_fea_C, 1].reshape((-1, 1))
+            if _print_:
+                print("find feature C:{},{}".format(Ccenter_x, Ccenter_y))
+        else:
+            mean_Cx = Ccenter_x
+            mean_Cy = Ccenter_y
+            rand = np.random.rand(20).reshape((-1, 1))
+            fea_Cx_new = mean_Cx + rand * 0.001
+            rand = np.random.rand(20).reshape((-1, 1))
+            fea_Cy_new = mean_Cy + rand * 0.001
+            if _print_:
+                print("complete feature C:{},{}".format(Ccenter_x, Ccenter_y))
+        self.Ccenter = np.array([Ccenter_x, Ccenter_y])
+        self.fea_C = np.hstack([fea_Cx_new, fea_Cy_new])
+        self.is_fea_C_gotten = True
 
+        if _print_:
+            print("D feature finding")
+        Dcenter_x = np.max(self.obs_high_level_x)
+        Dcenter_y = self.obs_high_mean_y
+        idx_fea_D = np.logical_and(np.abs(self.pcd_new[:, 0] - Dcenter_x) < 0.05,
+                                   np.abs(self.pcd_new[:, 1] - Dcenter_y) < 0.05)
+        if np.shape(idx_fea_D)[0] > 10:
+            fea_Dx_new = self.pcd_new[idx_fea_D, 0].reshape((-1, 1))
+            fea_Dy_new = self.pcd_new[idx_fea_D, 1].reshape((-1, 1))
+            if _print_:
+                print("find feature D:{},{}".format(Dcenter_x, Dcenter_y))
+        else:
+            mean_Dx = Dcenter_x
+            mean_Dy = Dcenter_y
+            rand = np.random.rand(20).reshape((-1, 1))
+            fea_Dx_new = mean_Dx + rand * 0.001
+            rand = np.random.rand(20).reshape((-1, 1))
+            fea_Dy_new = mean_Dy + rand * 0.001
+            if _print_:
+                print("complete feature C:{},{}".format(Dcenter_x, Dcenter_y))
+        self.Dcenter = np.array([Dcenter_x, Dcenter_y])
+        self.fea_D = np.hstack([fea_Dx_new, fea_Dy_new])
+        self.is_fea_D_gotten = True
 
 
     def get_fea_sa(self, _print_=False, ax=None, idx=0):
@@ -220,8 +289,8 @@ class pcd_opreator_system(object):
                 if _print_:
                     print("find feature A:{},{}".format(Acenter_x, Acenter_y))
             else:
-                mean_Ax = np.nanmean(self.stair_low_x[idx_fea_A])
-                mean_Ay = np.nanmean(self.stair_low_y[idx_fea_A])
+                mean_Ax = Acenter_x
+                mean_Ay = Acenter_y
                 rand = np.random.rand(20).reshape((-1, 1))
                 fea_Ax_new = mean_Ax + rand * 0.001
                 rand = np.random.rand(20).reshape((-1, 1))
@@ -248,8 +317,8 @@ class pcd_opreator_system(object):
                 if _print_:
                     print("find feature B:{},{}".format(Bcenter_x, Bcenter_y))
             else:
-                mean_Bx = np.nanmean(self.stair_low_x[idx_fea_B])
-                mean_By = np.nanmean(self.stair_low_y[idx_fea_B])
+                mean_Bx = Bcenter_x
+                mean_By = Bcenter_y
                 rand = np.random.rand(20).reshape((-1, 1))
                 fea_Bx_new = mean_Bx + rand * 0.001
                 rand = np.random.rand(20).reshape((-1, 1))
@@ -280,8 +349,8 @@ class pcd_opreator_system(object):
                     if _print_:
                         print("find feature C:{},{}".format(Ccenter_x, Ccenter_y))
                 else:
-                    mean_Cx = np.nanmean(X_right_part[idx_fea_C])
-                    mean_Cy = np.nanmean(Y_right_part[idx_fea_C])
+                    mean_Cx = Ccenter_x
+                    mean_Cy = Ccenter_y
                     rand = np.random.rand(20).reshape((-1, 1))
                     fea_Cx_new = mean_Cx + rand * 0.001
                     rand = np.random.rand(20).reshape((-1, 1))
@@ -300,8 +369,8 @@ class pcd_opreator_system(object):
                     if _print_:
                         print("find feature C:{},{}".format(Ccenter_x, Ccenter_y))
                 else:
-                    mean_Cx = np.nanmean(self.stair_high_x[idx_fea_C])
-                    mean_Cy = np.nanmean(self.stair_high_y[idx_fea_C])
+                    mean_Cx = Ccenter_x
+                    mean_Cy = Ccenter_y
                     rand = np.random.rand(20).reshape((-1, 1))
                     fea_Cx_new = mean_Cx + rand * 0.001
                     rand = np.random.rand(20).reshape((-1, 1))
