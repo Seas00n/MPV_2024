@@ -12,7 +12,7 @@ from Utils.IO import fifo_data_vec
 from alignment import icp_alignment
 from Plot_ import *
 
-data_save_path = "/media/yuxuan/SSD/IMG_TEST/TEST10/"
+data_save_path = "/media/yuxuan/SSD/IMG_TEST/TEST9/"
 
 env = Environment()
 env_type_buffer = []
@@ -84,7 +84,7 @@ if __name__ == "__main__":
                 continue
             else:
                 pcd_new_os.show_(ax, pcd_color='r', id=int(i))
-                ax.set_xlim(-1, 1)
-                ax.set_ylim(-1, 1)
+                ax.set_xlim(-1.5, 1.5)
+                ax.set_ylim(-1.5, 1.5)
             plt.draw()
-            plt.pause(0.1)
+            plt.pause(0.01)

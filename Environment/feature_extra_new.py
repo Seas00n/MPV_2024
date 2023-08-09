@@ -13,26 +13,35 @@ class pcd_opreator_system(object):
         self.fea_A = np.zeros((0, 2))
         self.fea_B = np.zeros((0, 2))
         self.fea_C = np.zeros((0, 2))
+        self.fea_D = np.zeros((0, 2))
         self.is_fea_A_gotten = False  # 是否提取到A
         self.is_fea_B_gotten = False  # 是否提取到B
         self.is_fea_C_gotten = False  # 是否提取到C
+        self.is_fea_D_gotten = False
         self.corner_situation = 0
         self.pcd_new = pcd_new
         self.num_line = 0
         self.fea_extra_over = False
 
     def get_fea(self, _print_=False, ax=None, idx=0):
+        if idx == 262:
+            stop = 1
         env_type = self.get_env_type_up_or_down(ax=ax)
         if _print_:
             print("Env_Type:{}".format(env_type))
 
         if ax is not None:
             plt.text(0, 0.1, "Env_Type:{}".format(env_type))
-        # env_type = 1
-        # if env_type == 1:
-        #     self.get_fea_sa(_print_=_print_, ax=ax, idx=idx)
-        # self.fea_extra_over = True
-
+        env_type = 1
+        if env_type == 1:
+            self.get_fea_sa(_print_=_print_, ax=ax, idx=idx)
+            self.fea_extra_over = True
+        if env_type == 2:
+            self.get_fea_sd(_print_=_print_, ax=ax, idx=idx)
+            self.fea_extra_over = True
+        if env_type == 3:
+            self.get_fea_ob(_print_=_print_, ax=ax, idx=idx)
+            self.fea_extra_over = True
     def get_env_type_up_or_down(self, ax=None):
         env_type = 0
         # todo: 可以汇总非ransac的直线提取函数
@@ -110,6 +119,11 @@ class pcd_opreator_system(object):
                     y_left_lest - y_right_lest) < 0.03:
                 if xmin_line_hest - x_left_lest > 0.03 and x_right_lest - xmax_line_hest > 0.03:
                     env_type = 3
+                    # 在此处提取
+                    self.obs_high_level_x = line_highest[:, 0]
+                    self.obs_high_mean_y = y_line_hest
+                    self.obs_low_x = xmin_line_hest
+                    self.obs_low_y = y_left_lest
                     return env_type
             elif abs(y_line_hest - y_right_lest) < 0.02 and y_line_hest - ymin_left > 0.1:
                 if xmin_line_hest - x_left_lest > 0.2:
@@ -126,6 +140,17 @@ class pcd_opreator_system(object):
 
     def get_fea_sd(self, _print_=False, ax=None, idx=0):
         return
+
+    def get_fea_ob(self, _print_=False, ax=None, idx=0):
+        self.corner_situation = 8
+        self.need_to_check_B = True
+        self.need_to_check_C = True
+        self.need_to_check_D = True
+
+
+
+
+
 
     def get_fea_sa(self, _print_=False, ax=None, idx=0):
         line1_success = False

@@ -120,12 +120,14 @@ class Environment:
         nb1.fit(self.pcd_2d)
         _, idx = nb1.kneighbors(self.pcd_2d)
         self.pcd_thin = np.mean(self.pcd_2d[idx, :], axis=1)
+
+        xmin = np.min(self.pcd_thin[:, 0])
+        idx_chosen = np.where(self.pcd_thin[:, 0] - xmin < 1)[0]
+        self.pcd_thin = self.pcd_thin[idx_chosen, :]
+
         idx_chosen = self.pcd_thin[:, 1] < -0.1
         self.pcd_thin = self.pcd_thin[idx_chosen, :]
-        ymax = np.max(self.pcd_thin[:, 0])
-        idx_remove = np.where(ymax - self.pcd_thin[:, 1] < 0.02)[0]
-        if 0 < len(idx_remove) < 10:
-            self.pcd_thin = np.delete(self.pcd_thin, idx_remove, axis=0)
+
         mean_x = np.mean(self.pcd_thin[:, 0])
         sigma_x = np.std(self.pcd_thin[:, 0])
         mean_y = np.mean(self.pcd_thin[:, 1])
@@ -133,6 +135,18 @@ class Environment:
         idx_remove = np.logical_and(np.abs(self.pcd_thin[:, 0] - mean_x) > 3 * sigma_x,
                                     np.abs(self.pcd_thin[:, 1] - mean_y) > 3 * sigma_y)
         self.pcd_thin = np.delete(self.pcd_thin, idx_remove, axis=0)
+
+        ymax = np.max(self.pcd_thin[:, 1])
+        idx_remove = np.where(ymax - self.pcd_thin[:, 1] < 0.01)[0]
+        if 0 < len(idx_remove) < 20:
+            self.pcd_thin = np.delete(self.pcd_thin, idx_remove, axis=0)
+
+        ymin = np.min(self.pcd_thin[:, 1])
+        idx_remove = np.where(self.pcd_thin[:, 1] - ymin < 0.01)[0]
+        line_min = self.pcd_thin[idx_remove, :]
+        if np.max(line_min[:, 0]) - np.min(line_min[:, 0]) < 0.01:
+            self.pcd_thin = np.delete(self.pcd_thin, idx_remove, axis=0)
+
     def get_fea_sa(self):
         xc = yc = w = h = 0
         X = self.pcd_thin[:, 0]
