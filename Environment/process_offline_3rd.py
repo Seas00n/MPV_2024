@@ -1,4 +1,6 @@
 import os
+import time
+
 import cv2
 import matplotlib as mpl
 import numpy as np
@@ -10,7 +12,7 @@ from Utils.IO import fifo_data_vec
 from alignment import icp_alignment
 from Plot_ import *
 
-data_save_path = "/media/yuxuan/SSD/IMG_TEST/TEST9/"
+data_save_path = "/media/yuxuan/SSD/IMG_TEST/TEST10/"
 
 env = Environment()
 env_type_buffer = []
@@ -84,6 +86,5 @@ if __name__ == "__main__":
                 pcd_new_os.show_(ax, pcd_color='r', id=int(i))
                 ax.set_xlim(-1, 1)
                 ax.set_ylim(-1, 1)
-
             plt.draw()
             plt.pause(0.1)

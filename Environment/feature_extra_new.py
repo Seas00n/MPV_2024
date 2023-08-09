@@ -25,10 +25,12 @@ class pcd_opreator_system(object):
         env_type = self.get_env_type_up_or_down(ax=ax)
         if _print_:
             print("Env_Type:{}".format(env_type))
+
+        if ax is not None:
+            plt.text(0, 0.1, "Env_Type:{}".format(env_type))
+        # env_type = 1
         # if env_type == 1:
         #     self.get_fea_sa(_print_=_print_, ax=ax, idx=idx)
-        # elif env_type == 2:
-        #     self.get_fea_sd(_print_=_print_, ax=ax, idx=idx)
         # self.fea_extra_over = True
 
     def get_env_type_up_or_down(self, ax=None):
@@ -39,8 +41,13 @@ class pcd_opreator_system(object):
         y_line_hest = np.nanmean(line_highest[:, 1])
         xmin_line_hest = line_highest[np.argmin(line_highest[:, 0]), 0]
         xmax_line_hest = line_highest[np.argmax(line_highest[:, 0]), 0]
-        idx_right_part = np.where(self.pcd_new[:, 0] > xmax_line_hest)
-        idx_left_part = np.where(self.pcd_new[:, 0] < xmin_line_hest)
+        if ax is not None:
+            ax.scatter(xmin_line_hest, y_line_hest, color='c', linewidths=4)
+            ax.scatter(xmax_line_hest, y_line_hest, color='b', linewidths=4)
+        idx_right_part = np.where(self.pcd_new[:, 0] > xmax_line_hest + 0.02)[0]
+        idx_left_part = np.where(self.pcd_new[:, 0] < xmin_line_hest - 0.02)[0]
+        check_right = True
+        check_left = True
         if np.shape(idx_right_part)[0] == 0:
             check_right = False
         if np.shape(idx_left_part)[0] == 0:
@@ -48,15 +55,19 @@ class pcd_opreator_system(object):
         if not check_right and not check_left:
             env_type = 0
             return env_type
+
         elif not check_left and check_right:
             ymin_right = np.min(self.pcd_new[idx_right_part, 1])
             line_lowest = self.pcd_new[np.where(np.abs(self.pcd_new[:, 1] - ymin_right) < 0.01)[0], :]
             y_line_lest = np.nanmean(line_lowest[:, 1])
             x_line_lest = line_lowest[np.argmax(line_lowest[:, 0]), 0]
+            if ax is not None:
+                print("not check Left and check Right")
+                ax.scatter(x_line_lest, y_line_lest, color='g', linewidths=4)
             if abs(y_line_hest - y_line_lest) < 0.01:
                 env_type = 0
                 return env_type
-            elif y_line_hest - y_line_lest > 0.1 and x_line_lest - xmax_line_hest > 0.03:
+            elif y_line_hest - y_line_lest > 0.05 and x_line_lest - xmax_line_hest > 0.03:
                 env_type = 2
                 return env_type
             else:
@@ -66,25 +77,36 @@ class pcd_opreator_system(object):
             line_lowest = self.pcd_new[np.where(np.abs(self.pcd_new[:, 1] - ymin_left) < 0.01)[0], :]
             y_line_lest = np.nanmean(line_lowest[:, 1])
             x_line_lest = line_lowest[np.argmin(line_lowest[:, 0]), 0]
+            if ax is not None:
+                print("not check Right and check Left")
+                ax.scatter(x_line_lest, y_line_lest, color='y', linewidths=4)
             if abs(y_line_hest - y_line_lest) < 0.01:
                 env_type = 0
                 return env_type
-            elif y_line_hest - y_line_lest > 0.1 and xmin_line_hest - x_line_lest > 0.03:
-                env_type = 2
+            elif y_line_hest - y_line_lest > 0.05 and xmin_line_hest - x_line_lest > 0.03:
+                env_type = 1
                 return env_type
             else:
                 return 0
         elif check_right and check_left:
-            ymin_right = np.min(self.pcd_new[idx_right_part, 1])
-            line_lowest = self.pcd_new[idx_right_part]
-            line_lowest = self.pcd_new[np.where(np.abs(self.pcd_new[idx_right_part, 1] - ymin_right) < 0.01)[0], :]
-            y_right_lest = np.nanmean(line_lowest[:, 1])
-            x_right_lest = line_lowest[np.argmax(line_lowest[:, 0]), 0]
-            ymin_left = np.min(self.pcd_new[idx_left_part, 1])
-            line_lowest = self.pcd_new[np.where(np.abs(self.pcd_new[idx_right_part, 1] - ymin_left) < 0.01)[0], :]
-            y_left_lest = np.nanmean(line_lowest[:, 1])
-            x_left_lest = line_lowest[np.argmin(line_lowest[:, 0]), 0]
-            if y_line_hest - y_left_lest > 0.1 and y_line_hest - y_right_lest > 0.1 and abs(
+            line_lowest_right = self.pcd_new[idx_right_part, :]
+            ymin_right = np.min(line_lowest_right[:, 1])
+            line_lowest_right = line_lowest_right[np.where(np.abs(line_lowest_right[:, 1] - ymin_right) < 0.01)[0], :]
+            y_right_lest = np.nanmean(line_lowest_right[:, 1])
+            x_right_lest = line_lowest_right[np.argmax(line_lowest_right[:, 0]), 0]
+
+            line_lowest_left = self.pcd_new[idx_left_part, :]
+            ymin_left = np.min(line_lowest_left[:, 1])
+            line_lowest_left = line_lowest_left[np.where(np.abs(line_lowest_left[:, 1] - ymin_left) < 0.01)[0], :]
+            y_left_lest = np.nanmean(line_lowest_left[:, 1])
+            x_left_lest = line_lowest_left[np.argmin(line_lowest_left[:, 0]), 0]
+            if ax is not None:
+                print("check Right and check Left")
+                ax.plot(line_lowest_right[:, 0], line_lowest_right[:, 1], color='black', linewidth=2)
+                ax.plot(line_lowest_left[:, 0], line_lowest_left[:, 1], color='black', linewidth=2)
+                ax.scatter(x_right_lest, y_right_lest, color='g', linewidths=4)
+                ax.scatter(x_left_lest, y_left_lest, color='y', linewidths=4)
+            if y_line_hest - y_left_lest > 0.05 and y_line_hest - y_right_lest > 0.05 and abs(
                     y_left_lest - y_right_lest) < 0.03:
                 if xmin_line_hest - x_left_lest > 0.03 and x_right_lest - xmax_line_hest > 0.03:
                     env_type = 3
@@ -101,43 +123,6 @@ class pcd_opreator_system(object):
                 env_type = 0
                 return env_type
         return 0
-
-        # ymax = np.max(self.pcd_new[:, 1])
-        # x_ymax = self.pcd_new[np.argmax(self.pcd_new[:, 1]), 0]
-        # part_left = self.pcd_new[np.where(x_ymax - self.pcd_new[:, 0] > 0.03)[0], :]
-        # part_right = self.pcd_new[np.where(self.pcd_new[:, 0] - x_ymax > 0.03)[0], :]
-        # if np.shape(part_right)[0] == 0:
-        #     env_type = 1
-        #     return env_type
-        # elif np.shape(part_left)[0] == 0:
-        #     env_type = 2
-        #     return env_type
-        # idx_right_max = np.argmax(part_right[:, 0])
-        # x_ymin_right = part_right[idx_right_max, 0]
-        # ymin_right = part_right[idx_right_max, 1]
-        # idx_left_min = np.argmin(part_left[:, 0])
-        # x_ymin_left = part_left[idx_left_min, 0]
-        # ymin_left = part_left[idx_left_min, 1]
-        # if ax is not None:
-        #     ax.scatter(x_ymax, ymax, color='b', linewidths=5)
-        #     ax.scatter(x_ymin_left, ymin_left, color='c', linewidths=5)
-        #     ax.scatter(x_ymin_right, ymin_right, color='c', linewidths=5)
-        # print("ymax-ymin_right:{}>0.1".format(ymax - ymin_right))
-        # print("ymax-ymin_left:{}>0.1".format(ymax - ymin_left))
-        # print("x_ymin_right-x_ymax:{}>0.2".format(x_ymin_right - x_ymax))
-        # print("x_ymax-x_ymin_left:{}>0.2".format(x_ymax - x_ymin_left))
-        # if ymax - ymin_right > 0.1 and ymax - ymin_left > 0.1 and abs(ymin_right - ymin_left) < 0.03:
-        #     if x_ymax - x_ymin_left > 0.02 and x_ymin_right - x_ymax > 0.02:
-        #         env_type = 3  # ob
-        # if abs(ymax - ymin_right) < 0.02 and ymax - ymin_left > 0.1:
-        #     if x_ymax - x_ymin_left > 0.2:
-        #         env_type = 1  # sa
-        # if abs(ymax - ymin_left) < 0.02 and ymax - ymin_right > 0.1:
-        #     if x_ymin_right - x_ymax > 0.2:
-        #         env_type = 2  # sd
-        # if abs(ymax - ymin_left) < 0.02 and abs(ymax - ymin_left) < 0.02:
-        #     env_type = 0
-        # return env_type
 
     def get_fea_sd(self, _print_=False, ax=None, idx=0):
         return
@@ -228,8 +213,8 @@ class pcd_opreator_system(object):
         if self.need_to_check_B:
             if _print_:
                 print('B feature finding')
-            Bcenter_x = stair_low_right_corner_x = np.max(self.stair_low_x)
-            Bcenter_y = stair_low_right_corner_y = self.stair_low_y[np.argmax(self.stair_low_x)][0]
+            Bcenter_x = stair_low_right_corner_x = max(np.min(self.stair_high_x), np.max(self.stair_low_x))
+            Bcenter_y = stair_low_right_corner_y = np.nanmean(self.stair_low_y)
             idx_fea_B = np.logical_and(np.abs(self.pcd_new[:, 0] - stair_low_right_corner_x) < 0.05,
                                        np.abs(self.pcd_new[:, 1] - stair_low_right_corner_y) < 0.05)
             if np.shape(idx_fea_B)[0] > 10:
