@@ -12,7 +12,7 @@ from Utils.IO import fifo_data_vec
 from alignment import icp_alignment
 from Plot_ import *
 
-data_save_path = "/media/yuxuan/SSD/IMG_TEST/TEST9/"
+data_save_path = "/media/yuxuan/SSD/IMG_TEST/TEST2/"
 
 env = Environment()
 env_type_buffer = []
@@ -57,7 +57,10 @@ if __name__ == "__main__":
 
         env.img_binary = np.load(data_save_path + "{}_img.npy".format(i))
         env.pcd_2d = np.load(data_save_path + "{}_pcd.npy".format(i))
+        if i == 34:
+            stop = 1
         env.thin()
+        # env.pcd_thin = env.pcd_2d
         env.classification_from_img()
         img = cv2.cvtColor(env.elegant_img(), cv2.COLORMAP_RAINBOW)
         add_type(img, env_type=Env_Type(env.type_pred_from_nn), id=i)
@@ -72,13 +75,13 @@ if __name__ == "__main__":
             camera_dy_buffer.append(0)
             env_type_buffer.append(env.type_pred_from_nn)
             pcd_os = pcd_opreator_system(pcd_new=env.pcd_thin)
-            pcd_os.get_fea(_print_=True, ax=None)
+            pcd_os.get_fea(_print_=True, ax=None, idx=i)
             pcd_os_buffer = fifo_data_vec(pcd_os_buffer, pcd_os)
         else:
             pcd_pre_os = pcd_os_buffer[-1]  # type: pcd_opreator_system
             pcd_pre = pcd_pre_os.pcd_new
             pcd_new, pcd_new_os = env.pcd_thin, pcd_opreator_system(env.pcd_thin)
-            pcd_new_os.get_fea(_print_=True, ax=ax, idx=i)
+            pcd_new_os.get_fea(_print_=True, ax=None, idx=i)
             pcd_os_buffer = fifo_data_vec(pcd_os_buffer, pcd_new_os)
             if plot_3d:
                 continue

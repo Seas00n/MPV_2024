@@ -8,7 +8,7 @@ from feature_extra_new import *
 from Utils.IO import fifo_data_vec
 from alignment import icp_alignment
 imu_buffer_path = "../Sensor/IM948/imu_buffer.npy"
-data_save_path = "/media/yuxuan/SSD/IMG_TEST/TEST1/"  # 3
+data_save_path = "/media/yuxuan/SSD/IMG_TEST/TEST4/"  # 3
 
 env = Environment()
 env_type_buffer = []
@@ -152,7 +152,7 @@ if __name__ == "__main__":
             pcd_pre = pcd_pre_os.pcd_new
             pcd_new_os = pcd_opreator_system(pcd_new=pcd_new)
             # 特征提取
-            pcd_new_os.get_fea(_print_=True, ax=None, idx=i)
+            pcd_new_os.get_fea(_print_=True, ax=ax, idx=i)
             pcd_os_buffer = fifo_data_vec(pcd_os_buffer, pcd_new_os)
             # 特征组合
             fea_to_align_new, fea_to_align_pre, flag_method1 = align_fea(pcd_new=pcd_new_os,
@@ -325,7 +325,7 @@ if __name__ == "__main__":
                 ax.set_xlim(-1, 1)
                 ax.set_ylim(-1, 1)
             plt.draw()
-            plt.pause(0.1)
+            plt.pause(0.2)
 
     if use_method1:
         np.save("traj_x_method1.npy", np.array(camera_x_buffer))

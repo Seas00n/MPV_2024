@@ -125,7 +125,10 @@ class Environment:
         idx_chosen = np.where(self.pcd_thin[:, 0] - xmin < 1)[0]
         self.pcd_thin = self.pcd_thin[idx_chosen, :]
 
-        idx_chosen = self.pcd_thin[:, 1] < -0.1
+        if self.pcd_thin[np.argmin(self.pcd_thin[:, 0]), 1] > self.pcd_thin[np.argmax(self.pcd_thin[:, 0]), 1] + 0.1:
+            idx_chosen = np.where(self.pcd_thin[:, 1] < -0.4)[0]  # 下楼处理邻近噪声
+        else:
+            idx_chosen = np.where(self.pcd_thin[:, 1] < -0.1)[0]  # 上楼处理邻近噪声
         self.pcd_thin = self.pcd_thin[idx_chosen, :]
 
         mean_x = np.mean(self.pcd_thin[:, 0])
@@ -137,14 +140,15 @@ class Environment:
         self.pcd_thin = np.delete(self.pcd_thin, idx_remove, axis=0)
 
         ymax = np.max(self.pcd_thin[:, 1])
-        idx_remove = np.where(ymax - self.pcd_thin[:, 1] < 0.01)[0]
-        if 0 < len(idx_remove) < 20:
+        idx_remove = np.where(ymax - self.pcd_thin[:, 1] < 0.02)[0]
+        line_max = self.pcd_thin[idx_remove, :]
+        if np.max(line_max[:, 0]) - np.min(line_max[:, 0]) < 0.02:
             self.pcd_thin = np.delete(self.pcd_thin, idx_remove, axis=0)
 
         ymin = np.min(self.pcd_thin[:, 1])
-        idx_remove = np.where(self.pcd_thin[:, 1] - ymin < 0.01)[0]
+        idx_remove = np.where(self.pcd_thin[:, 1] - ymin < 0.02)[0]
         line_min = self.pcd_thin[idx_remove, :]
-        if np.max(line_min[:, 0]) - np.min(line_min[:, 0]) < 0.01:
+        if np.max(line_min[:, 0]) - np.min(line_min[:, 0]) < 0.02:
             self.pcd_thin = np.delete(self.pcd_thin, idx_remove, axis=0)
 
     def get_fea_sa(self):
