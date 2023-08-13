@@ -380,6 +380,7 @@ if __name__ == "__main__":
     print("Connecting bluetooth ...")
 
     manager = gatt.DeviceManager(adapter_name='hci0')
+    # device = AnyDevice(manager=manager, mac_address=args.mac_address)
     device = AnyDevice(manager=manager, mac_address=mac_address)
     device.sock_pc = sock
     if host is None:
