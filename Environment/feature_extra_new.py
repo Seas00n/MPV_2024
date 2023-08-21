@@ -1,8 +1,12 @@
+import math
+import time
+
 import matplotlib.pyplot as plt
 import numpy as np
 from Utils.Algo import *
 import cv2
 import sys
+import datetime
 
 
 class pcd_opreator_system(object):
@@ -27,9 +31,12 @@ class pcd_opreator_system(object):
         self.num_line = 0
         self.fea_extra_over = False
         self.env_type = 0
+        self.env_rotate = 0
+        self.cost_time = 0
 
-    def get_fea(self, _print_=False, ax=None, idx=0):
-        self.env_type = self.get_env_type_up_or_down(ax=ax)
+    def get_fea(self, _print_=False, ax=None, idx=0, nn_class = 0):
+        self.env_type = self.get_env_type_up_or_down(ax=ax, nn_class_prior=nn_class)
+        t0 = datetime.datetime.now()
         if _print_:
             print("Env_Type:{}".format(self.env_type))
             plt.text(0, 0.1, "Env_Type:{}".format(self.env_type))
@@ -42,10 +49,27 @@ class pcd_opreator_system(object):
         if self.env_type == 3:
             self.get_fea_ob(_print_=_print_, ax=None, idx=idx)
             self.fea_extra_over = True
+        diff = datetime.datetime.now() - t0
+        self.cost_time = diff.total_seconds()
 
-    def get_env_type_up_or_down(self, ax=None):
+    def get_env_type_up_or_down(self, ax=None, nn_class_prior = 0):
         env_type = 0
         # todo: 可以汇总非ransac的直线提取函数
+        xmin = np.min(self.pcd_new[:, 0])
+        xmax = np.max(self.pcd_new[:, 0])
+        y_xmin = self.pcd_new[np.argmin(self.pcd_new[:, 0]), 1]
+        y_xmax = self.pcd_new[np.argmax(self.pcd_new[:, 0]), 1]
+
+        if (abs(y_xmin - y_xmax) < 0.15 and
+            abs((y_xmax - y_xmin) / (xmax - xmin)) < 0.15) and \
+                (nn_class_prior == 0 or nn_class_prior == 3 or nn_class_prior == 4):
+            # 进行地面水平矫正
+            line_theta = math.atan((y_xmax - y_xmin) / (xmax - xmin))
+            x = self.pcd_new[:, 0]
+            y = self.pcd_new[:, 1]
+            self.pcd_new[:, 0] = np.cos(line_theta) * x + np.sin(line_theta) * y
+            self.pcd_new[:, 1] = -np.sin(line_theta) * x + np.cos(line_theta) * y
+
         ymax = np.max(self.pcd_new[:, 1])
         line_highest = self.pcd_new[np.where(np.abs(self.pcd_new[:, 1] - ymax) < 0.01)[0], :]
         y_line_hest = np.nanmean(line_highest[:, 1])
@@ -149,6 +173,7 @@ class pcd_opreator_system(object):
 
         if line1_success:
             self.num_line = 1
+            x1, y1, mean_line1, idx1 = self.line_ground_calibrate(idx1)
         else:
             self.num_line = 0
             return
@@ -204,8 +229,8 @@ class pcd_opreator_system(object):
             print("B feature finding")
         Bcenter_x = self.obs_low_x
         Bcenter_y = self.obs_low_y
-        idx_fea_B = np.logical_and(np.abs(self.pcd_new[:, 0] - Bcenter_x) < 0.05,
-                                   np.abs(self.pcd_new[:, 1] - Bcenter_y) < 0.05)
+        idx_fea_B = np.logical_and(np.abs(self.pcd_new[:, 0] - Bcenter_x) < 0.02,
+                                   np.abs(self.pcd_new[:, 1] - Bcenter_y) < 0.02)
         if np.shape(self.pcd_new[idx_fea_B, 0])[0] > 10:
             fea_Bx_new = self.pcd_new[idx_fea_B, 0].reshape((-1, 1))
             fea_By_new = self.pcd_new[idx_fea_B, 1].reshape((-1, 1))
@@ -228,8 +253,8 @@ class pcd_opreator_system(object):
             print("C feature finding")
         Ccenter_x = np.min(self.obs_high_level_x)
         Ccenter_y = self.obs_high_mean_y
-        idx_fea_C = np.logical_and(np.abs(self.pcd_new[:, 0] - Ccenter_x) < 0.05,
-                                   np.abs(self.pcd_new[:, 1] - Ccenter_y) < 0.05)
+        idx_fea_C = np.logical_and(np.abs(self.pcd_new[:, 0] - Ccenter_x) < 0.02,
+                                   np.abs(self.pcd_new[:, 1] - Ccenter_y) < 0.02)
 
         if np.shape(self.pcd_new[idx_fea_C, 0])[0] > 10:
             fea_Cx_new = self.pcd_new[idx_fea_C, 0].reshape((-1, 1))
@@ -253,8 +278,8 @@ class pcd_opreator_system(object):
             print("D feature finding")
         Dcenter_x = np.max(self.obs_high_level_x)
         Dcenter_y = self.obs_high_mean_y
-        idx_fea_D = np.logical_and(np.abs(self.pcd_new[:, 0] - Dcenter_x) < 0.05,
-                                   np.abs(self.pcd_new[:, 1] - Dcenter_y) < 0.05)
+        idx_fea_D = np.logical_and(np.abs(self.pcd_new[:, 0] - Dcenter_x) < 0.02,
+                                   np.abs(self.pcd_new[:, 1] - Dcenter_y) < 0.02)
         if np.shape(self.pcd_new[idx_fea_D, 0])[0] > 10:
             fea_Dx_new = self.pcd_new[idx_fea_D, 0].reshape((-1, 1))
             fea_Dy_new = self.pcd_new[idx_fea_D, 1].reshape((-1, 1))
@@ -281,6 +306,7 @@ class pcd_opreator_system(object):
                                                                         _print_=_print_)
         if line1_success:
             self.num_line = 1
+            x1, y1, mean_line1, idx1 = self.line_ground_calibrate(idx1)
         else:
             self.num_line = 0
             return
@@ -407,7 +433,6 @@ class pcd_opreator_system(object):
                 self.has_part_under_line = True
         else:
             self.has_part_under_line = False
-
 
         self.has_part_left_line = False
         print("Left_line:{}".format(np.min(stair_low_x) - xmin))
@@ -555,7 +580,7 @@ class pcd_opreator_system(object):
         idx_x1_in_X0 = np.zeros((0,))
         idx_X0_in_X0 = np.arange(np.shape(X0)[0])
         try:
-            inlier_mask1, outlier_mask1, line_y_ransac1, line_X1 = RANSAC(X0, Y0, th_ransac_k)
+            inlier_mask1, outlier_mask1, line_y_ransac1, line_X1, theta_line1 = RANSAC(X0, Y0, th_ransac_k)
             mean_line1 = np.nanmean(Y0[inlier_mask1])
             idx_x1_in_X0 = np.where(abs(Y0 - mean_line1) < 0.01)[0]
             x1 = X0[idx_x1_in_X0, :]
@@ -568,6 +593,7 @@ class pcd_opreator_system(object):
             # 3.点和点之间水平距离<th_interval
             if np.shape(idx_x1_in_X0)[0] > 20 and line1_length >= th_length and np.max(np.abs(diff_x1)) < th_interval:
                 line1_success = True
+                self.env_rotate = theta_line1
                 if _print_:
                     print("Line1 get")
             # 如果直线过短重新提取一次
@@ -577,7 +603,7 @@ class pcd_opreator_system(object):
                 X_temp = np.delete(X0, idx_x1_in_X0).reshape((-1, 1))
                 Y_temp = np.delete(Y0, idx_x1_in_X0).reshape((-1, 1))
                 idx_Xtemp_in_X0 = np.delete(idx_X0_in_X0, idx_x1_in_X0)
-                inlier_mask1, outlier_mask1, line_y_ransac1, line_X1 = RANSAC(X_temp, Y_temp, th_ransac_k)
+                inlier_mask1, outlier_mask1, line_y_ransac1, line_X1, theta_line1 = RANSAC(X_temp, Y_temp, th_ransac_k)
                 mean_line1 = mean_line_temp = np.nanmean(Y_temp[inlier_mask1])
                 idx_x1_in_Xtemp = np.where(abs(Y_temp - mean_line_temp) < 0.01)[0]
                 idx_x1_in_X0 = idx_Xtemp_in_X0[idx_x1_in_Xtemp]
@@ -588,6 +614,7 @@ class pcd_opreator_system(object):
                 if np.shape(idx_x1_in_X0)[0] > 20 and line1_length > th_length and np.max(
                         np.abs(diff_x1)) < th_interval:
                     line1_success = True
+                    self.env_rotate = theta_line1
                     if _print_:
                         print("Line1 get")
                 else:
@@ -620,7 +647,7 @@ class pcd_opreator_system(object):
         idx_X1_in_X0 = np.delete(idx_all, idx_x1_in_X0)
         idx_x2_in_X0 = np.zeros((0,))
         try:
-            inlier_mask2, outlier_mask2, line_y_ransac2, line_X2 = RANSAC(X1, Y1, th_ransac_k)
+            inlier_mask2, outlier_mask2, line_y_ransac2, line_X2, theta_line2 = RANSAC(X1, Y1, th_ransac_k)
             mean_line2 = np.nanmean(Y1[inlier_mask2])
             idx_x2_in_X1 = np.where(abs(Y1 - mean_line2) < 0.01)[0]
             idx_x2_in_X0 = idx_X1_in_X0[idx_x2_in_X1]
@@ -638,7 +665,7 @@ class pcd_opreator_system(object):
                 X_temp = np.delete(X1, idx_x2_in_X1).reshape((-1, 1))
                 Y_temp = np.delete(Y1, idx_x2_in_X1).reshape((-1, 1))
                 idx_Xtemp_in_X0 = np.delete(idx_X1_in_X0, idx_x2_in_X0)
-                inlier_mask2, outlier_mask2, line_y_ransac2, line_X2 = RANSAC(X_temp, Y_temp, th_ransac_k)
+                inlier_mask2, outlier_mask2, line_y_ransac2, line_X2, theta_line2 = RANSAC(X_temp, Y_temp, th_ransac_k)
                 mean_line2 = mean_line_temp = np.nanmean(Y_temp[inlier_mask2])
                 idx_x2_in_Xtemp = np.where(abs(Y_temp - mean_line_temp) < 0.01)[0]
                 idx_x2_in_X0 = idx_Xtemp_in_X0[idx_x2_in_Xtemp]
@@ -855,6 +882,26 @@ class pcd_opreator_system(object):
         else:
             self.is_fea_F_gotten = False
 
+    def line_ground_calibrate(self, idx_x1_in_X0):
+        if self.num_line > 0:
+            X0 = self.pcd_new[:, 0].reshape((-1, 1))
+            Y0 = self.pcd_new[:, 1].reshape((-1, 1))
+            x1 = X0[idx_x1_in_X0, :]
+            y1 = Y0[idx_x1_in_X0, :]
+            k, b = np.polyfit(x1.reshape((-1,)), y1.reshape((-1,)), 1)
+            line_theta = math.atan(k)
+            x = self.pcd_new[:, 0]
+            y = self.pcd_new[:, 1]
+            self.pcd_new[:, 0] = np.cos(line_theta) * x + np.sin(line_theta) * y
+            self.pcd_new[:, 1] = -np.sin(line_theta) * x + np.cos(line_theta) * y
+            X0 = self.pcd_new[:, 0].reshape((-1, 1))
+            Y0 = self.pcd_new[:, 1].reshape((-1, 1))
+            x1 = X0[idx_x1_in_X0, :]
+            y1 = Y0[idx_x1_in_X0, :]
+            mean_line1 = np.nanmean(y1)
+            idx_x1_in_X0 = np.where(abs(Y0 - mean_line1) < 0.01)[0]
+        return x1, y1, mean_line1, idx_x1_in_X0
+
     def show_(self, ax, pcd_color='r', id=0, p_text=0.1, p_pcd=None):
         if p_pcd is None:
             p_pcd = [0, 0]
@@ -862,6 +909,8 @@ class pcd_opreator_system(object):
                    alpha=0.1)
         plt.text(p_text, -0.1, 'id: {}'.format(id))
         if self.fea_extra_over:
+            plt.text(p_text, 0.5, 'theta: {}'.format(round(self.env_rotate, 2)))
+            plt.text(p_text, -0.3, "time cost:{}ms".format(round(1000 * self.cost_time, 2)))
             if self.num_line == 2:
                 ax.plot(self.stair_low_x + p_pcd[0], self.stair_low_y + p_pcd[1], color='black', linewidth=2)
                 ax.plot(self.stair_high_x + p_pcd[0], self.stair_high_y + p_pcd[1], color='tab:gray', linewidth=2)

@@ -10,17 +10,10 @@ from array import array
 import socket
 import sys
 
-buffer_name = sys.argv[1]
 
-if buffer_name == "thigh":
-    mac_address = "d1:3d:df:93:34:a5"
-    buffer_name = "imu_thigh"
-elif buffer_name == "ankle":
-    mac_address = "7e:7f:3a:2d:bb:2a"
-    buffer_name = "imu_ankle"
-elif buffer_name == "knee":
-    mac_address = "6B:C3:BA:65:E3:86"
-    buffer_name = "imu_buffer"
+mac_address = "6B:C3:BA:65:E3:86"
+# mac_address = "d1:3d:df:93:34:a5"
+buffer_name = "imu_buffer"
 
 class AnyDevice(gatt.Device):
     sock_pc = None

@@ -12,7 +12,7 @@ from Utils.IO import fifo_data_vec
 from alignment import icp_alignment
 from Plot_ import *
 
-data_save_path = "/media/yuxuan/SSD/IMG_TEST/TEST2/"
+data_save_path = "/media/yuxuan/SSD/IMG_TEST/TEST7/"
 
 env = Environment()
 env_type_buffer = []
@@ -57,8 +57,6 @@ if __name__ == "__main__":
 
         env.img_binary = np.load(data_save_path + "{}_img.npy".format(i))
         env.pcd_2d = np.load(data_save_path + "{}_pcd.npy".format(i))
-        if i == 34:
-            stop = 1
         env.thin()
         # env.pcd_thin = env.pcd_2d
         env.classification_from_img()

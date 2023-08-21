@@ -30,7 +30,7 @@ env = Environment()
 
 
 imu_buffer_path = "../Sensor/IM948/imu_buffer.npy"
-data_save_path = "/media/yuxuan/SSD/IMG_TEST/TEST10/"
+data_save_path = "/media/yuxuan/SSD/IMG_TEST/TEST12/"
 img_list = os.listdir(data_save_path)
 str = input("按回车清除目录：" + data_save_path)
 for f in img_list:

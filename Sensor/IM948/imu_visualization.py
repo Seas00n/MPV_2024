@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.spatial.transform import Rotation as R
 
-imu_buffer = np.memmap("imu_ankle.npy", dtype='float32', mode='r',
+imu_buffer = np.memmap("imu_buffer.npy", dtype='float32', mode='r',
                        shape=(12,))
 
 fig = plt.figure(figsize=(8, 8))
@@ -11,7 +11,7 @@ plt.ion()
 
 try:
     while True:
-        eular = imu_buffer[6:9]
+        eular = [imu_buffer[6], imu_buffer[7], imu_buffer[8]]
         plt.cla()
         r_mat = R.from_euler('xyz', [eular[0], eular[1], eular[2]], degrees=True).as_matrix()
         x_ = r_mat[:, 0]

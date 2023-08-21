@@ -150,6 +150,7 @@ class Environment:
         line_min = self.pcd_thin[idx_remove, :]
         if np.max(line_min[:, 0]) - np.min(line_min[:, 0]) < 0.02:
             self.pcd_thin = np.delete(self.pcd_thin, idx_remove, axis=0)
+        self.pcd_thin = self.pcd_thin[0:-1:2, :]
 
     def get_fea_sa(self):
         xc = yc = w = h = 0
