@@ -302,7 +302,7 @@ class pcd_opreator_system(object):
         line1_success = False
         x1, y1, idx1 = [], [], []
         mean_line1 = 0
-        x1, y1, mean_line1, idx1, line1_success = self.ransac_process_1(th_ransac_k=0.1, th_length=0.1, th_interval=0.1,
+        x1, y1, mean_line1, idx1, line1_success = self.ransac_process_1(th_ransac_k=0.1, th_length=0.1, th_interval=0.15,
                                                                         _print_=_print_)
         if line1_success:
             self.num_line = 1
@@ -579,6 +579,7 @@ class pcd_opreator_system(object):
         Y0 = self.pcd_new[:, 1].reshape((-1, 1))
         idx_x1_in_X0 = np.zeros((0,))
         idx_X0_in_X0 = np.arange(np.shape(X0)[0])
+        something_print = 0
         try:
             inlier_mask1, outlier_mask1, line_y_ransac1, line_X1, theta_line1 = RANSAC(X0, Y0, th_ransac_k)
             mean_line1 = np.nanmean(Y0[inlier_mask1])
@@ -596,10 +597,12 @@ class pcd_opreator_system(object):
                 self.env_rotate = theta_line1
                 if _print_:
                     print("Line1 get")
+                    something_print = 1
             # 如果直线过短重新提取一次
             elif np.shape(idx_x1_in_X0)[0] > 20 and line1_length < th_length and np.max(np.abs(diff_x1)) < th_interval:
                 if _print_:
                     print("Line1 Try RANSAC Again")
+                    something_print = 1
                 X_temp = np.delete(X0, idx_x1_in_X0).reshape((-1, 1))
                 Y_temp = np.delete(Y0, idx_x1_in_X0).reshape((-1, 1))
                 idx_Xtemp_in_X0 = np.delete(idx_X0_in_X0, idx_x1_in_X0)
@@ -617,6 +620,7 @@ class pcd_opreator_system(object):
                     self.env_rotate = theta_line1
                     if _print_:
                         print("Line1 get")
+                        something_print = 1
                 else:
                     line1_success = False
                     if _print_:
@@ -624,12 +628,15 @@ class pcd_opreator_system(object):
                         print(
                             "line1_length:{}<{}".format(line1_length, th_length) + "diff_x1:{}>{}".format(
                                 np.max(np.abs(diff_x1)), th_interval))
-
+                        something_print = 1
         except Exception as e:
             line1_success = False
             if _print_:
                 print(e)
                 print("Line1 RANSAC False, No Line in the picture")
+                something_print = 1
+        if something_print == 0:
+            stop = 1
         return x1, y1, mean_line1, idx_x1_in_X0, line1_success
 
     def ransac_process_2(self, idx1, th_ransac_k=0.1, th_length=0.1, th_interval=0.1, _print_=False):
