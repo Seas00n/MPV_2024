@@ -1,3 +1,5 @@
+import datetime
+
 import cv2
 import matplotlib.pyplot as plt
 
@@ -13,12 +15,17 @@ from Environment.Environment import *
 from Environment.feature_extra_new import *
 from Environment.alignment_knn import *
 from Utils.IO import fifo_data_vec
+import fusion_algo
+
 
 # 存储设置
 camera_dx_buffer = []
 camera_dy_buffer = []
 camera_x_buffer = []
 camera_y_buffer = []
+fusion_x_buffer = []
+fusion_y_buffer = []
+time_buffer = []
 pcd_os_buffer = [[], []]
 
 # 画图设置
@@ -33,6 +40,19 @@ use_lcm = False
 pcd_data = np.zeros((38528, 3))
 pcd_data_temp = np.zeros((38528, 3))
 
+#传感融合
+use_fusion = False
+imu_params = fusion_algo.ImuParameters()
+imu_params.sigma_a_n = 0.001221
+imu_params.sigma_a_b = 0.000048
+init_nomial_state = np.zeros((11,))
+init_nomial_state[6:8] = np.array([0, -9.81])
+sigma_measurement_p = 0.000025
+sigma_measurement = np.eye(2) * (sigma_measurement_p**2)
+estimator = fusion_algo.ESEKF(init_nominal_state=init_nomial_state,
+                              imu_parameters=imu_params)
+
+
 
 def pcd_handler(channel, data):
     global pcd_data_temp
@@ -43,14 +63,16 @@ def pcd_handler(channel, data):
     pcd_data_temp = (pcd_data - 10000) / 300.0  # int16_t to float
 
 
+
 env = Environment()
 str = input("按回车开始")
 
+
 if __name__ == "__main__":
     if use_data_set:
-        imu_data = np.load(data_save_path + "imu_data.npy")
-        imu_data = imu_data[1:, :]
-        idx_frame = np.arange(np.shape(imu_data)[0])
+        imu_dataset = np.load(data_save_path + "imu_data.npy")
+        imu_dataset = imu_dataset[1:, :]
+        idx_frame = np.arange(np.shape(imu_dataset)[0])
         num_frame = np.shape(idx_frame)[0]
     else:
         imu_buffer = np.memmap("../Sensor/IM948/imu_knee.npy", dtype='float32', mode='r', shape=(14,))
@@ -72,6 +94,22 @@ if __name__ == "__main__":
         ax.set_ylim(-1, 1)
     plt.ion()
 
+    t0 = time.time()
+    imu_initial_buffer = []
+    count = 0
+    while time.time()-t0 < 1000:
+        if use_data_set:
+            imu_initial_buffer = imu_initial_buffer.append(imu_dataset[count, :])
+            count += 1
+            time.sleep(0.001)
+        else:
+            imu_data = imu_buffer[0:]
+            imu_initial_buffer = imu_initial_buffer.append(imu_data)
+            count += 1
+            time.sleep(0.001)
+    imu_initial = np.mean(np.array(imu_initial_buffer), axis=0)
+    init_nomial_state[8:11] = imu_initial[7:10]
+
     try:
         for i in range(num_frame):
             print("----------------------------Frame[{}]------------------------".format(i))
@@ -80,6 +118,7 @@ if __name__ == "__main__":
             if use_data_set:
                 env.img_binary = np.load(data_save_path + "{}_img.npy".format(i))
                 env.pcd_2d = np.load(data_save_path + "{}_pcd.npy".format(i))
+                imu_data = imu_data[i,:]
             else:
                 if use_lcm:
                     pcd_lc.handle()
@@ -95,6 +134,8 @@ if __name__ == "__main__":
                 camera_dy_buffer.append(0)
                 camera_x_buffer.append(0)
                 camera_y_buffer.append(0)
+                fusion_x_buffer.append(0)
+                fusion_y_buffer.append(0)
                 pcd_os = pcd_opreator_system(pcd_new=env.pcd_thin)
                 env.classification_from_img()
                 pcd_os.get_fea(_print_=True, nn_class=env.type_pred_from_nn)
@@ -132,6 +173,24 @@ if __name__ == "__main__":
                 camera_x_buffer.append(camera_x_buffer[-1] + xmove)
                 camera_y_buffer.append(camera_y_buffer[-1] + ymove)
 
+                if use_fusion:
+                    imu_for_predict = np.array([imu_data[6:9],imu_data[0:3],imu_data[3:6]]).reshape((-1,))
+                    if use_data_set:
+                        time_stamp = round(imu_data[-1],3)
+                    else:
+                        time_now = datetime.datetime.now()
+                        time_stamp = (time_now-time_buffer[-1]).total_seconds()
+                    estimator.predict(imu_for_predict, time_stamp)
+                    estimator.update(np.array([camera_x_buffer[-1], camera_y_buffer[-1]]), sigma_measurement)
+                    frame_pose = estimator.nominal_state[:2].copy()
+                    fusion_x_buffer.append(frame_pose[0])
+                    fusion_y_buffer.append(frame_pose[1])
+
+                else:
+                    fusion_x_buffer.append(camera_x_buffer[-1])
+                    fusion_y_buffer.append(camera_y_buffer[-1])
+
+
                 if plot_3d:
                     continue
                 else:
@@ -141,9 +200,13 @@ if __name__ == "__main__":
                     ax.set_ylim(-1, 1)
                     plt.draw()
                     plt.pause(0.001)
+
             # cv2.imshow("binaryimage", env.elegant_img())
             # key = cv2.waitKey(1)
             # if key == ord('q'):
             #     break
+            time_buffer[-1] = datetime.datetime.now()
+
+
     except KeyboardInterrupt:
         pass
