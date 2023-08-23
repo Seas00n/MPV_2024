@@ -1,5 +1,6 @@
 import datetime
-
+import sys
+sys.path.append("/home/yuxuan/Project/MPV_2024/")
 import cv2
 import matplotlib.pyplot as plt
 
@@ -25,11 +26,16 @@ camera_x_buffer = []
 camera_y_buffer = []
 fusion_x_buffer = []
 fusion_y_buffer = []
-time_buffer = []
+time_buffer = [datetime.datetime.now()]
 pcd_os_buffer = [[], []]
+
+#降采样设置
+down_sample_rate = 5
+
 
 # 画图设置
 plot_3d = False
+
 
 # 离线测试
 use_data_set = False
@@ -80,7 +86,8 @@ if __name__ == "__main__":
             pcd_msg, pcd_lc = pcd_lcm_initialize()
             subscriber = pcd_lc.subscribe("PCD_DATA", pcd_handler)
         else:
-            pcd_buffer = np.memmap("../Sensor/RoyaleSDK/pcd_buffer.npy", dtype='float32', mode='r', shape=(38528, 3))
+            num_points = int(38528/down_sample_rate)+1
+            pcd_buffer = np.memmap("../Sensor/RoyaleSDK/pcd_buffer.npy", dtype='float32', mode='r', shape=(num_points, 3))
         t0 = time.time()
         num_frame = 1000
 
@@ -97,14 +104,14 @@ if __name__ == "__main__":
     t0 = time.time()
     imu_initial_buffer = []
     count = 0
-    while time.time()-t0 < 1000:
+    while time.time()-t0 < 0.5:
         if use_data_set:
-            imu_initial_buffer = imu_initial_buffer.append(imu_dataset[count, :])
+            imu_initial_buffer.append(imu_dataset[count, :])
             count += 1
             time.sleep(0.001)
         else:
             imu_data = imu_buffer[0:]
-            imu_initial_buffer = imu_initial_buffer.append(imu_data)
+            imu_initial_buffer.append(imu_data)
             count += 1
             time.sleep(0.001)
     imu_initial = np.mean(np.array(imu_initial_buffer), axis=0)
@@ -146,7 +153,7 @@ if __name__ == "__main__":
                 pcd_new, pcd_new_os = env.pcd_thin, pcd_opreator_system(env.pcd_thin)
                 xmove, ymove = 0, 0
                 env.classification_from_img()
-                pcd_new_os.get_fea(_print_=True, nn_class=env.type_pred_from_nn)
+                pcd_new_os.get_fea(_print_=True, nn_class=env.type_pred_from_nn, ax=None)
                 pcd_os_buffer = fifo_data_vec(pcd_os_buffer, pcd_new_os)
                 fea_to_align_new, fea_to_align_pre, flag_method = align_fea(pcd_new=pcd_new_os,
                                                                             pcd_pre=pcd_pre_os,
@@ -201,10 +208,10 @@ if __name__ == "__main__":
                     plt.draw()
                     plt.pause(0.001)
 
-            # cv2.imshow("binaryimage", env.elegant_img())
-            # key = cv2.waitKey(1)
-            # if key == ord('q'):
-            #     break
+            cv2.imshow("binaryimage", env.elegant_img())
+            key = cv2.waitKey(1)
+            if key == ord('q'):
+                break
             time_buffer[-1] = datetime.datetime.now()
 
 
