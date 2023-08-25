@@ -65,6 +65,7 @@ class pcd_opreator_system(object):
         if (nn_class_prior == 0 or nn_class_prior == 3 or nn_class_prior == 4):
             # 进行地面水平矫正
             line_theta = math.atan((y_xmax - y_xmin) / (xmax - xmin))
+            self.env_rotate += line_theta
             x = self.pcd_new[:, 0]
             y = self.pcd_new[:, 1]
             self.pcd_new[:, 0] = np.cos(line_theta) * x + np.sin(line_theta) * y
@@ -599,7 +600,6 @@ class pcd_opreator_system(object):
             # 3.点和点之间水平距离<th_interval
             if np.shape(idx_x1_in_X0)[0] > 20 and line1_length >= th_length and np.max(np.abs(diff_x1)) < th_interval:
                 line1_success = True
-                self.env_rotate = theta_line1
                 if _print_:
                     print("Line1 get")
                     something_print = 1
@@ -622,7 +622,6 @@ class pcd_opreator_system(object):
                 if np.shape(idx_x1_in_X0)[0] > 20 and line1_length > th_length and np.max(
                         np.abs(diff_x1)) < th_interval:
                     line1_success = True
-                    self.env_rotate = theta_line1
                     if _print_:
                         print("Line1 get")
                         something_print = 1
@@ -900,12 +899,13 @@ class pcd_opreator_system(object):
             Y0 = self.pcd_new[:, 1].reshape((-1, 1))
             x1 = X0[idx_x1_in_X0, :]
             y1 = Y0[idx_x1_in_X0, :]
-            k, b = np.polyfit(x1.reshape((-1,)), y1.reshape((-1,)), 1)
+            k, b = np.polyfit(x1.reshape((-1,)), y1.reshape((-1,)),1)
             line_theta = math.atan(k)
             x = self.pcd_new[:, 0]
             y = self.pcd_new[:, 1]
             self.pcd_new[:, 0] = np.cos(line_theta) * x + np.sin(line_theta) * y
             self.pcd_new[:, 1] = -np.sin(line_theta) * x + np.cos(line_theta) * y
+            self.env_rotate += line_theta
             X0 = self.pcd_new[:, 0].reshape((-1, 1))
             Y0 = self.pcd_new[:, 1].reshape((-1, 1))
             x1 = X0[idx_x1_in_X0, :]

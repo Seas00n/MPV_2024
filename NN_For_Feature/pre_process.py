@@ -1,4 +1,5 @@
 import datetime
+import random
 import sys
 
 sys.path.append("/home/yuxuan/Project/MPV_2024/")
@@ -60,29 +61,46 @@ class open3d_voxelpipeline(object):
         self.pcd3d[:, 0] = np.reshape(xx.T, (-1,))
 
 
-def get_fea_all(pcd_os: pcd_opreator_system, origin_x, origin_y):
+def normalize_rotate(point, origin, theta):
+    point_new = np.zeros_like(point)
+    x = point[0]-origin[0]
+    y = point[1]-origin[1]
+    point_new[0] = np.cos(theta) * x + np.sin(theta) * y
+    point_new[1] = -np.sin(theta) * x + np.cos(theta) * y
+    return point_new
+
+def get_fea_all(pcd_os: pcd_opreator_system, origin_x, origin_y, random_theta=0):
     fea_vec = np.zeros((13,))
     fea_vec[0] = pcd_os.corner_situation
     origin = np.array([origin_x, origin_y])
     if pcd_os.is_fea_A_gotten:
-        fea_vec[1:3] = pcd_os.Acenter - origin
+        Anew = normalize_rotate(pcd_os.Acenter, origin, random_theta)
+        fea_vec[1:3] = Anew
     if pcd_os.is_fea_B_gotten:
-        fea_vec[3:5] = pcd_os.Bcenter - origin
+        Bnew = normalize_rotate(pcd_os.Bcenter, origin, random_theta)
+        fea_vec[3:5] = Bnew
     if pcd_os.is_fea_C_gotten:
-        fea_vec[5:7] = pcd_os.Ccenter - origin
+        Cnew = normalize_rotate(pcd_os.Ccenter, origin, random_theta)
+        fea_vec[5:7] = Cnew
     if pcd_os.is_fea_D_gotten:
-        fea_vec[7:9] = pcd_os.Dcenter - origin
+        Dnew = normalize_rotate(pcd_os.Dcenter, origin, random_theta)
+        fea_vec[7:9] = Dnew
     if pcd_os.is_fea_E_gotten:
-        fea_vec[9:11] = pcd_os.Ecenter - origin
+        Enew = normalize_rotate(pcd_os.Ecenter, origin, random_theta)
+        fea_vec[9:11] = Enew
     if pcd_os.is_fea_F_gotten:
-        fea_vec[11:-1] = pcd_os.Fcenter - origin
+        Fnew = normalize_rotate(pcd_os.Fcenter, origin, random_theta)
+        fea_vec[11:-1] = Fnew
     return fea_vec
 
 
 fea_save = []
 pcd_voxel_save = []
-fea_save_path = "/media/yuxuan/SSD/ENV_Fea_Train/fea_trainset_2.npy"
-pcd_voxel_save_path = "/media/yuxuan/SSD/ENV_Fea_Train/voxel_trainset2.npy"
+fea_save_path = "/media/yuxuan/SSD/ENV_Fea_Train/fea/fea_trainset_3.npy"
+pcd_voxel_save_path = "/media/yuxuan/SSD/ENV_Fea_Train/voxel/voxel_trainset3.npy"
+
+
+
 
 str = input("按回车开始")
 if __name__ == "__main__":
@@ -94,7 +112,7 @@ if __name__ == "__main__":
     ax.set_xlim(-1, 1)
     ax.set_ylim(-1, 1)
     plt.ion()
-    num_frame = 3000
+    num_frame = 100
 
     try:
         for i in range(num_frame):
@@ -111,15 +129,35 @@ if __name__ == "__main__":
             pcd2d_new = np.array([o3d_voxel.voxel_center_x, o3d_voxel.voxel_center_y]).T
             pcd_os = pcd_opreator_system(pcd_new=env.pcd_thin)
             pcd_os.get_fea(_print_=True, nn_class=env.type_pred_from_nn)
-            origin_x = pcd_os.pcd_new[-1, 0]
-            origin_y = pcd_os.pcd_new[-1, 1]
-            ax.scatter(pcd2d_new[0:-1, 0] - origin_x, pcd2d_new[0:-1, 1] - origin_y, color='b', alpha=0.3)
+            origin_x = np.min(pcd_os.pcd_new[:, 0])
+            origin_y = pcd_os.pcd_new[np.argmin(pcd_os.pcd_new[:, 0]), 1]
+
+            line_theta = pcd_os.env_rotate
+            x = pcd2d_new[0:, 0]
+            y = pcd2d_new[0:, 1]
+            pcd2d_new[0:, 0] = np.cos(line_theta) * x + np.sin(line_theta) * y
+            pcd2d_new[0:, 1] = -np.sin(line_theta) * x + np.cos(line_theta) * y
+            pcd2d_new[0:, 0] = pcd2d_new[0:, 0]-origin_x
+            pcd2d_new[0:, 1] = pcd2d_new[0:, 1]-origin_y
+
+            # random_theta = random.uniform(-0.15, 0.15)
+            random_theta = 0
+            x = pcd2d_new[0:, 0]
+            y = pcd2d_new[0:, 1]
+            pcd2d_new[0:, 0] = np.cos(random_theta) * x + np.sin(random_theta) * y
+            pcd2d_new[0:, 1] = -np.sin(random_theta) * x + np.cos(random_theta) * y
+
             pcd_os.show_(ax, pcd_color='r', id=int(i), downsample=1)
             if pcd_os.env_type == 1 or 3:
                 if 8 >= pcd_os.corner_situation > 0:
-                    fea_vec = get_fea_all(pcd_os, origin_x, origin_y)
+                    fea_vec = get_fea_all(pcd_os, origin_x, origin_y, random_theta=random_theta)
                     fea_save.append(fea_vec)
                     pcd_voxel_save.append(pcd2d_new)
+                    if pcd_os.is_fea_B_gotten:
+                        B = fea_vec[3:5]
+                        ax.scatter(B[0], B[1], color='g', linewidths=2)
+                        ax.scatter(pcd2d_new[:, 0], pcd2d_new[:, 1], color='b', alpha=0.3)
+                        print(np.max(pcd2d_new[:, 1]))
             ax.set_xlim(-1, 1)
             ax.set_ylim(-1, 1)
             print(np.shape(pcd2d_new))
