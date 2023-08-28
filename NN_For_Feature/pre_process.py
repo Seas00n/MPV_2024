@@ -61,13 +61,65 @@ class open3d_voxelpipeline(object):
         self.pcd3d[:, 0] = np.reshape(xx.T, (-1,))
 
 
+class voxel_uniformpipeline(object):
+    def __init__(self, pcd, odd_theta):
+        pcd_new = np.copy(pcd)
+        x = pcd_new[:, 0]
+        y = pcd_new[:, 1]
+        pcd_new[:, 0] = np.cos(odd_theta) * x + np.sin(odd_theta) * y
+        pcd_new[:, 1] = -np.sin(odd_theta) * x + np.cos(odd_theta) * y
+        self.origin_x = np.min(pcd_new[:, 0])
+        self.origin_y = pcd_new[np.argmin(pcd_os.pcd_new[:, 0]), 1]
+        pcd_new[:, 0] = pcd_new[:, 0]-self.origin_x
+        pcd_new[:, 1] = pcd_new[:, 1]-self.origin_y
+        idx_arange = np.argsort(pcd_new[0:, 0], kind="quicksort")
+        pcd_new = pcd_new[idx_arange, :]
+        idx_discontinuous = np.where(np.sum(np.abs(np.diff(pcd_new, axis=0)), axis=1) > 0.05)[0]
+        y_list = np.split(pcd_new[:, 1], idx_discontinuous)
+        x_list = np.split(pcd_new[:, 0], idx_discontinuous)
+        new_x = x_list[0][1:-1:2]
+        new_y = y_list[0][1:-1:2]
+        for i in range(len(idx_discontinuous)):
+            interp_y = np.linspace(pcd_new[idx_discontinuous[i], 1], pcd_new[idx_discontinuous[i] + 1, 1], 11)
+            interp_x = np.ones(11) * np.mean([pcd_new[idx_discontinuous[i], 0], pcd_new[idx_discontinuous[i] + 1, 0]])
+            new_y = np.hstack([new_y, interp_y, y_list[i + 1][1:-1:3]])
+            new_x = np.hstack([new_x, interp_x, x_list[i + 1][1:-1:3]])
+        idx_pre = np.arange(np.shape(new_x)[0])
+        fx = interpolate.interp1d(idx_pre, new_x, "zero")
+        fy = interpolate.interp1d(idx_pre, new_y, "zero")
+        xx_new = np.linspace(0, idx_pre[-1], 100)
+        self.pcd_new = np.vstack([fx(xx_new), fy(xx_new)]).T
+        self.mask = np.zeros(np.shape(self.pcd_new)[0])
+
+    def mask_value(self, origin, value, radius=0.03):
+        idx = np.logical_and(np.abs(self.pcd_new[:, 0] - origin[0]) < radius,
+                             np.abs(self.pcd_new[:, 1] - origin[1]) < radius)
+        self.mask[idx] = value
+
+    def find_mask(self, pcd_os: pcd_opreator_system):
+        origin = np.array([self.origin_x, self.origin_y])
+        if pcd_os.is_fea_A_gotten:
+            self.mask_value(pcd_os.Acenter-origin, 1, radius=0.02)
+        if pcd_os.is_fea_B_gotten:
+            self.mask_value(pcd_os.Bcenter-origin, 2, radius=0.02)
+        if pcd_os.is_fea_C_gotten:
+            self.mask_value(pcd_os.Ccenter-origin, 3, radius=0.02)
+        if pcd_os.is_fea_D_gotten:
+            self.mask_value(pcd_os.Dcenter-origin, 4, radius=0.02)
+        if pcd_os.is_fea_E_gotten:
+            self.mask_value(pcd_os.Ecenter-origin, 5, radius=0.02)
+        if pcd_os.is_fea_F_gotten:
+            self.mask_value(pcd_os.Fcenter-origin, 6, radius=0.02)
+
+
 def normalize_rotate(point, origin, theta):
     point_new = np.zeros_like(point)
-    x = point[0]-origin[0]
-    y = point[1]-origin[1]
+    x = point[0] - origin[0]
+    y = point[1] - origin[1]
     point_new[0] = np.cos(theta) * x + np.sin(theta) * y
     point_new[1] = -np.sin(theta) * x + np.cos(theta) * y
     return point_new
+
 
 def get_fea_all(pcd_os: pcd_opreator_system, origin_x, origin_y, random_theta=0):
     fea_vec = np.zeros((13,))
@@ -96,11 +148,8 @@ def get_fea_all(pcd_os: pcd_opreator_system, origin_x, origin_y, random_theta=0)
 
 fea_save = []
 pcd_voxel_save = []
-fea_save_path = "/media/yuxuan/SSD/ENV_Fea_Train/fea/fea_trainset_3.npy"
-pcd_voxel_save_path = "/media/yuxuan/SSD/ENV_Fea_Train/voxel/voxel_trainset3.npy"
-
-
-
+fea_save_path = "/media/yuxuan/SSD/ENV_Fea_Train/fea/fea_trainset_2.npy"
+pcd_voxel_save_path = "/media/yuxuan/SSD/ENV_Fea_Train/voxel/voxel_trainset2.npy"
 
 str = input("按回车开始")
 if __name__ == "__main__":
@@ -112,7 +161,7 @@ if __name__ == "__main__":
     ax.set_xlim(-1, 1)
     ax.set_ylim(-1, 1)
     plt.ion()
-    num_frame = 100
+    num_frame = 2500
 
     try:
         for i in range(num_frame):
@@ -125,22 +174,27 @@ if __name__ == "__main__":
             env.pcd_to_binary_image(pcd_data_temp, eular_angle)
             env.thin()
             env.classification_from_img()
-            o3d_voxel = open3d_voxelpipeline(pcd=env.pcd_2d)
-            pcd2d_new = np.array([o3d_voxel.voxel_center_x, o3d_voxel.voxel_center_y]).T
+
             pcd_os = pcd_opreator_system(pcd_new=env.pcd_thin)
             pcd_os.get_fea(_print_=True, nn_class=env.type_pred_from_nn)
-            origin_x = np.min(pcd_os.pcd_new[:, 0])
-            origin_y = pcd_os.pcd_new[np.argmin(pcd_os.pcd_new[:, 0]), 1]
+
+            # o3d_voxel = open3d_voxelpipeline(pcd=env.pcd_2d)
+            # pcd2d_new = np.array([o3d_voxel.voxel_center_x, o3d_voxel.voxel_center_y]).T
+            # origin_x = np.min(pcd_os.pcd_new[:, 0])
+            # origin_y = pcd_os.pcd_new[np.argmin(pcd_os.pcd_new[:, 0]), 1]
 
             line_theta = pcd_os.env_rotate
-            x = pcd2d_new[0:, 0]
-            y = pcd2d_new[0:, 1]
-            pcd2d_new[0:, 0] = np.cos(line_theta) * x + np.sin(line_theta) * y
-            pcd2d_new[0:, 1] = -np.sin(line_theta) * x + np.cos(line_theta) * y
-            pcd2d_new[0:, 0] = pcd2d_new[0:, 0]-origin_x
-            pcd2d_new[0:, 1] = pcd2d_new[0:, 1]-origin_y
+            # x = pcd2d_new[0:, 0]
+            # y = pcd2d_new[0:, 1]
+            # pcd2d_new[0:, 0] = np.cos(line_theta) * x + np.sin(line_theta) * y
+            # pcd2d_new[0:, 1] = -np.sin(line_theta) * x + np.cos(line_theta) * y
+            # pcd2d_new[0:, 0] = pcd2d_new[0:, 0]-origin_x
+            # pcd2d_new[0:, 1] = pcd2d_new[0:, 1]-origin_y
+            vp = voxel_uniformpipeline(pcd=env.pcd_thin, odd_theta=line_theta)
+            pcd2d_new = vp.pcd_new
+            vp.find_mask(pcd_os)
 
-            # random_theta = random.uniform(-0.15, 0.15)
+            random_theta = random.uniform(-0.15, 0.15)
             random_theta = 0
             x = pcd2d_new[0:, 0]
             y = pcd2d_new[0:, 1]
@@ -150,13 +204,13 @@ if __name__ == "__main__":
             pcd_os.show_(ax, pcd_color='r', id=int(i), downsample=1)
             if pcd_os.env_type == 1 or 3:
                 if 8 >= pcd_os.corner_situation > 0:
-                    fea_vec = get_fea_all(pcd_os, origin_x, origin_y, random_theta=random_theta)
-                    fea_save.append(fea_vec)
+                    # fea_vec = get_fea_all(pcd_os, origin_x, origin_y, random_theta=random_theta)
+                    fea_save.append(vp.mask)
                     pcd_voxel_save.append(pcd2d_new)
                     if pcd_os.is_fea_B_gotten:
-                        B = fea_vec[3:5]
-                        ax.scatter(B[0], B[1], color='g', linewidths=2)
-                        ax.scatter(pcd2d_new[:, 0], pcd2d_new[:, 1], color='b', alpha=0.3)
+                        B = pcd2d_new[np.where(vp.mask == 2)[0], :]
+                        ax.scatter(B[:, 0], B[:, 1], color='g', linewidths=5)
+                        ax.scatter(pcd2d_new[:, 0], pcd2d_new[:, 1], color='b', alpha=0.1)
                         print(np.max(pcd2d_new[:, 1]))
             ax.set_xlim(-1, 1)
             ax.set_ylim(-1, 1)

@@ -38,29 +38,20 @@ def align_fea(pcd_new: pcd_opreator_system,
                 fea_component_pre = [0, 0, fea_len]
                 pcd_align_flag = 0
                 return pcd_to_align_new, pcd_to_align_pre, pcd_align_flag
-        elif (pcd_new.corner_situation == 10 and pcd_pre.corner_situation == 10):
-            if pcd_new.is_fea_D_gotten and pcd_new.is_fea_D_gotten:
-                if pcd_new.Dcenter[0] - pcd_pre.Dcenter[0] > 0.15:
-                    if pcd_pre.is_fea_F_gotten:
-                        fea_len = min(np.shape(pcd_new.fea_D)[0], np.shape(pcd_pre.fea_F)[0])
-                        pcd_to_align_new = np.vstack([pcd_to_align_new, pcd_new.fea_D[0:fea_len, :]])
-                        pcd_to_align_pre = np.vstack([pcd_to_align_pre, pcd_pre.fea_F[0:fea_len, :]])
-                        if _print_:
-                            print("fea_D and fea_F")
-                        fea_component_new[3] = fea_len
-                        fea_component_pre[5] = fea_len
-                    if pcd_new.is_fea_E_gotten and pcd_pre.is_fea_E_gotten:
-                        fea_len = min(np.shape(pcd_new.fea_E)[0], np.shape(pcd_pre.fea_E)[0])
-                        pcd_to_align_new = np.vstack([pcd_to_align_new, pcd_new.fea_E[0:fea_len, :]])
-                        pcd_to_align_pre = np.vstack([pcd_to_align_pre, pcd_pre.fea_E[0:fea_len, :]])
-                        if _print_:
-                            print("fea_E and fea_E")
-                        fea_component_new[4] = fea_len
-                        fea_component_pre[4] = fea_len
-                    pcd_align_flag = 0
-                    return pcd_to_align_new, pcd_to_align_pre, pcd_align_flag
-        elif (pcd_new.corner_situation == 10 and pcd_new.corner_situation == 9):
-            if pcd_new.is_fea_D_gotten and pcd_new.is_fea_F_gotten:
+        elif pcd_new.corner_situation == 10 and pcd_pre.corner_situation == 10:
+            if pcd_new.Dcenter[0] - pcd_pre.Dcenter[0] > 0.15:
+                if pcd_new.is_fea_D_gotten and pcd_pre.is_fea_F_gotten:
+                    fea_len = min(np.shape(pcd_new.fea_D)[0], np.shape(pcd_pre.fea_F)[0])
+                    pcd_to_align_new = np.vstack([pcd_to_align_new, pcd_new.fea_D[0:fea_len, :]])
+                    pcd_to_align_pre = np.vstack([pcd_to_align_pre, pcd_pre.fea_F[0:fea_len, :]])
+                    if _print_:
+                        print("fea_D and fea_F")
+                    fea_component_new[3] = fea_len
+                    fea_component_pre[5] = fea_len
+                pcd_align_flag = 0
+                return pcd_to_align_new, pcd_to_align_pre, pcd_align_flag
+        elif pcd_new.corner_situation == 10 and pcd_pre.corner_situation == 9:
+            if pcd_new.Ecenter[0] - pcd_pre.Ecenter[1] > 0.15:
                 fea_len = min(np.shape(pcd_new.fea_D)[0], np.shape(pcd_pre.fea_F)[0])
                 pcd_to_align_new = np.vstack([pcd_to_align_new, pcd_new.fea_D[0:fea_len, :]])
                 pcd_to_align_pre = np.vstack([pcd_to_align_pre, pcd_pre.fea_F[0:fea_len, :]])
@@ -68,9 +59,22 @@ def align_fea(pcd_new: pcd_opreator_system,
                     print("fea_D and fea_F")
                 fea_component_new[3] = fea_len
                 fea_component_pre[5] = fea_len
+            pcd_align_flag = 0
+            return pcd_to_align_new, pcd_to_align_pre, pcd_align_flag
+        elif (pcd_new.corner_situation == 9 and pcd_pre.corner_situation == 10):
+            if pcd_new.is_fea_E_gotten and pcd_pre.is_fea_E_gotten:
+                # 通过E的移动距离评估是否变化较大，如果变化大则选择对准new的D和pre的F
+                if pcd_pre.Ecenter[0] - pcd_new.Ecenter[0] > 0.15:
+                    if pcd_new.is_fea_F_gotten and pcd_pre.is_fea_D_gotten:
+                        fea_len = min(np.shape(pcd_new.fea_F)[0], np.shape(pcd_pre.fea_D)[0])
+                        pcd_to_align_new = np.vstack([pcd_to_align_new, pcd_new.fea_F[0:fea_len, :]])
+                        pcd_to_align_pre = np.vstack([pcd_to_align_pre, pcd_pre.fea_D[0:fea_len, :]])
+                        if _print_:
+                            print("fea_F and fea_D")
+                        fea_component_new[5] = fea_len
+                        fea_component_pre[3] = fea_len
                 pcd_align_flag = 0
                 return pcd_to_align_new, pcd_to_align_pre, pcd_align_flag
-
         else:
             if pcd_new.is_fea_A_gotten and pcd_pre.is_fea_A_gotten:
                 fea_len = min(np.shape(pcd_new.fea_A)[0], np.shape(pcd_pre.fea_A)[0])

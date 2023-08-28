@@ -55,7 +55,6 @@ class MyData(Dataset):
         fea_name = self.fea_npy_path + "{}.npy".format(idx)
         voxel_name = self.voxel_npy_path + "{}.npy".format(idx)
         fea_all = np.load(fea_name)
-        fea = fea_all[1:]
         voxel = np.load(voxel_name)
         min_voxel_x = min(voxel[:, 0])
         max_voxel_x = max(voxel[:, 0])
@@ -63,11 +62,7 @@ class MyData(Dataset):
         max_voxel_y = max(voxel[:, 1])
         voxel[:, 0] = self.data_in_one(voxel[:, 0], min_voxel_x, max_voxel_x)
         voxel[:, 1] = self.data_in_one(voxel[:, 1], min_voxel_y, max_voxel_y)
-        idx_not_zero = np.where(fea != 0)[0]
-        fea[idx_not_zero[0::2]] = self.data_in_one(fea[idx_not_zero[0::2]], min_voxel_x, max_voxel_x)
-        fea[idx_not_zero[1::2]] = self.data_in_one(fea[idx_not_zero[1::2]], min_voxel_y, max_voxel_y)
-        fea = fea[0:6]
-        return fea, voxel
+        return fea_all, voxel
 
     def __len__(self):
         return self.num_fea
@@ -76,3 +71,4 @@ class MyData(Dataset):
 if __name__ == "__main__":
     db = MyData(dataset_path="/media/yuxuan/SSD/ENV_Fea_Train")
     db.resave_all()
+    db.__getitem__(1)

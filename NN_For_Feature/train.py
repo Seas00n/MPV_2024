@@ -9,7 +9,7 @@ from Dataset import *
 from torch.utils.data import DataLoader
 from model.pointnet2d import *
 
-nepoch = 100
+nepoch = 200
 
 batch_size = 20
 
@@ -26,7 +26,7 @@ train_loader = DataLoader(train_dataset,
 
 print("Train set:{}".format(len(train_dataset)))
 
-classifier = PointNetDenseCls2d(k=6)
+classifier = PointNetDenseCls2d(k=7)
 
 optimizer = torch.optim.Adam(
     classifier.parameters(),
@@ -35,6 +35,7 @@ optimizer = torch.optim.Adam(
     eps=1e-08,
     # weight_decay=1e-4
 )
+
 
 scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=20, gamma=0.1)
 
@@ -70,24 +71,27 @@ for f in os.listdir(log_dir + "/tensorboard"):
 
 writer = SummaryWriter(tensorboard_dir)
 
+min_loss = 100
 for epoch in range(nepoch):
-    loss_epoch = 0
+    loss_epoch = 100
     for i, data in enumerate(train_loader, 0):
         target = data[0].to(torch.float32)
         points = data[1].to(torch.float32)
         points = points.transpose(2, 1)
+        target = target.type(torch.LongTensor)
         points, target = points.to(device), target.to(device)
         optimizer.zero_grad()
         classifier = classifier.train()
         pred, trans, trans_feat = classifier(points)
-        print(pred[0, :])
-        print(target[0, :])
-        loss = loss_func(pred.reshape(-1), target.reshape(-1))
+        # print("Pred:{}".format(np.shape(pred)))
+        # print("Label:{}".format(np.shape(target)))
+        loss = loss_func(pred, target)
         loss.backward()
         optimizer.step()
-        print('[%d: %d/%d] train loss: %f' % (
-            epoch, i, num_batch, loss.item()))
-        loss_epoch = loss.item()
+        print('[%d: %d/%d] train loss: %f' % (epoch, i, num_batch, loss.item()))
+        if loss < min_loss:
+            min_loss = loss
+            torch.save(classifier.state_dict(), "model.pth")
     scheduler.step()
-    if epoch % 10 == 0:
-        writer.add_scalar("loss", loss_epoch, epoch)
+    loss_epoch = min_loss
+    writer.add_scalar("loss", loss_epoch, epoch)

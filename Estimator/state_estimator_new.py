@@ -15,6 +15,7 @@ import os
 from Environment.Environment import *
 from Environment.feature_extra_new import *
 from Environment.alignment_knn import *
+from Environment.Plot_ import *
 from Utils.IO import fifo_data_vec
 import fusion_algo
 
@@ -208,7 +209,9 @@ if __name__ == "__main__":
                     plt.draw()
                     plt.pause(0.001)
 
-            cv2.imshow("binaryimage", env.elegant_img())
+            img = cv2.cvtColor(env.elegant_img(), cv2.COLORMAP_RAINBOW)
+            add_type(img, env_type=Env_Type(env.type_pred_from_nn), id=i)
+            cv2.imshow("binary", img)
             key = cv2.waitKey(1)
             if key == ord('q'):
                 break

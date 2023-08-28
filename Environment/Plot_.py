@@ -1,6 +1,6 @@
 import cv2
 import matplotlib.pyplot as plt
-from Environment import Env_Type
+from Environment.Environment import Env_Type
 import numpy as np
 
 

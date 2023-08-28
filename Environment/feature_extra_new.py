@@ -65,11 +65,12 @@ class pcd_opreator_system(object):
         if (nn_class_prior == 0 or nn_class_prior == 3 or nn_class_prior == 4):
             # 进行地面水平矫正
             line_theta = math.atan((y_xmax - y_xmin) / (xmax - xmin))
-            self.env_rotate += line_theta
-            x = self.pcd_new[:, 0]
-            y = self.pcd_new[:, 1]
-            self.pcd_new[:, 0] = np.cos(line_theta) * x + np.sin(line_theta) * y
-            self.pcd_new[:, 1] = -np.sin(line_theta) * x + np.cos(line_theta) * y
+            if abs(line_theta) < 0.2:
+                self.env_rotate += line_theta
+                x = self.pcd_new[:, 0]
+                y = self.pcd_new[:, 1]
+                self.pcd_new[:, 0] = np.cos(line_theta) * x + np.sin(line_theta) * y
+                self.pcd_new[:, 1] = -np.sin(line_theta) * x + np.cos(line_theta) * y
 
         ymax = np.max(self.pcd_new[:, 1])
         line_highest = self.pcd_new[np.where(np.abs(self.pcd_new[:, 1] - ymax) < 0.015)[0], :]
@@ -172,7 +173,7 @@ class pcd_opreator_system(object):
         x1, y1, idx1 = [], [], []
         mean_line1 = 0
         # 需要调节th_length使得尽量有一条以上的直线
-        x1, y1, mean_line1, idx1, line1_success = self.ransac_process_1(th_ransac_k=0.15, th_length=0.2,
+        x1, y1, mean_line1, idx1, line1_success = self.ransac_process_1(th_ransac_k=0.15, th_length=0.1,
                                                                         th_interval=0.1,
                                                                         _print_=_print_)
 
