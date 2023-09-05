@@ -7,6 +7,7 @@ from Utils.Algo import *
 import cv2
 import sys
 import datetime
+from Utils.pcd_os_fast_plot import *
 
 
 class pcd_opreator_system(object):
@@ -83,7 +84,7 @@ class pcd_opreator_system(object):
         idx_right_part = np.where(np.logical_and(self.pcd_new[:, 0] > xmax_line_hest + 0.02,
                                                  self.pcd_new[:, 1] < y_line_hest - 0.03))[0]
         idx_left_part = np.where(np.logical_and(self.pcd_new[:, 0] < xmin_line_hest - 0.02,
-                                       self.pcd_new[:, 1] < y_line_hest - 0.03))[0]
+                                                self.pcd_new[:, 1] < y_line_hest - 0.03))[0]
         check_right = True
         check_left = True
         if np.shape(idx_right_part)[0] == 0:
@@ -144,9 +145,9 @@ class pcd_opreator_system(object):
                 ax.plot(line_lowest_left[:, 0], line_lowest_left[:, 1], color='black', linewidth=2)
                 ax.scatter(x_right_lest, y_right_lest, color='g', linewidths=4)
                 ax.scatter(x_left_lest, y_left_lest, color='y', linewidths=4)
-                print(y_line_hest-y_left_lest)
-                print(y_line_hest-y_right_lest)
-            if y_line_hest - y_left_lest > 0.02 and y_line_hest - y_right_lest > 0.02 :
+                print(y_line_hest - y_left_lest)
+                print(y_line_hest - y_right_lest)
+            if y_line_hest - y_left_lest > 0.02 and y_line_hest - y_right_lest > 0.02:
                 if xmin_line_hest - x_left_lest > 0.02 and x_right_lest - xmax_line_hest > 0.02:
                     env_type = 3
                     # 在此处提取
@@ -900,7 +901,7 @@ class pcd_opreator_system(object):
             Y0 = self.pcd_new[:, 1].reshape((-1, 1))
             x1 = X0[idx_x1_in_X0, :]
             y1 = Y0[idx_x1_in_X0, :]
-            k, b = np.polyfit(x1.reshape((-1,)), y1.reshape((-1,)),1)
+            k, b = np.polyfit(x1.reshape((-1,)), y1.reshape((-1,)), 1)
             line_theta = math.atan(k)
             x = self.pcd_new[:, 0]
             y = self.pcd_new[:, 1]
@@ -915,7 +916,7 @@ class pcd_opreator_system(object):
             idx_x1_in_X0 = np.where(abs(Y0 - mean_line1) < 0.01)[0]
         return x1, y1, mean_line1, idx_x1_in_X0
 
-    def show_(self, ax, pcd_color='r', id=0, p_text=0.1, p_pcd=None, downsample = 10):
+    def show_(self, ax, pcd_color='r', id=0, p_text=0.1, p_pcd=None, downsample=2):
         if p_pcd is None:
             p_pcd = [0, 0]
         ax.scatter(self.pcd_new[0:-1:downsample, 0] + p_pcd[0],
@@ -964,6 +965,38 @@ class pcd_opreator_system(object):
             ax.set_xlim(-1, 1)
             ax.set_ylim(-1, 1)
             plt.text(p_text, -0.2, 'corner: {}'.format(self.corner_situation))
+    def show_fast(self, fast_plot_ax:FastPlotCanvas, type, id=0, p_text=-0.5, p_pcd=None, downsample=2):
+        if p_pcd is None:
+            p_pcd = [0, 0]
+        fast_plot_ax.set_pcd(self.pcd_new[0:-1:downsample]+p_pcd, type)
+        # plt.text(p_text, -0.1, 'id: {}'.format(id))
+        if self.fea_extra_over:
+            # plt.text(p_text, 0.5, 'theta: {}'.format(round(self.env_rotate, 2)))
+            # plt.text(p_text, -0.3, "time cost:{}ms".format(round(1000 * self.cost_time, 2)))
+            if self.env_type == 1:
+                if self.is_fea_A_gotten:
+                    fast_plot_ax.set_fea_A(self.fea_A[0:-1:5]+p_pcd)
+                if self.is_fea_B_gotten:
+                    fast_plot_ax.set_fea_B(self.fea_B[0:-1:5] + p_pcd)
+                if self.is_fea_C_gotten:
+                    fast_plot_ax.set_fea_C(self.fea_C[0:-1:5] + p_pcd)
+            elif self.env_type == 2:
+                if self.is_fea_D_gotten:
+                    fast_plot_ax.set_fea_D(self.fea_D[0:-1:5] + p_pcd)
+                if self.is_fea_E_gotten:
+                    fast_plot_ax.set_fea_E(self.fea_E[0:-1:5] + p_pcd)
+                if self.is_fea_F_gotten:
+                    fast_plot_ax.set_fea_F(self.fea_F[0:-1:5] + p_pcd)
+
+            elif self.env_type == 3:
+                if self.is_fea_B_gotten:
+                    fast_plot_ax.set_fea_B(self.fea_B[0:-1:5] + p_pcd)
+                if self.is_fea_C_gotten:
+                    fast_plot_ax.set_fea_C(self.fea_C[0:-1:5] + p_pcd)
+                if self.is_fea_D_gotten:
+                    fast_plot_ax.set_fea_D(self.fea_D[0:-1:5] + p_pcd)
+            fast_plot_ax.set_info(p_text, 0.5, id, self.corner_situation, self.env_rotate)
+            fast_plot_ax.update_canvas()
 
     def fea_to_env_paras(self):
         xc, yc, w, h = 0, 0, 0, 0

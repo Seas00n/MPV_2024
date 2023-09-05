@@ -10,7 +10,7 @@ from Utils.IO import *
 import scipy
 from Utils.Algo import *
 from sklearn.neighbors import NearestNeighbors
-
+from scipy import interpolate
 
 def pcd2d_to_3d(pcd_2d, num_rows=5):
     num_points = np.shape(pcd_2d)[0]
@@ -114,6 +114,30 @@ class Environment:
         img[:, :, 1] = cv2.resize(self.img_binary, (500, 500))
         img[:, :, 2] = cv2.resize(self.img_binary, (500, 500))
         return img
+
+
+
+    def voxel_interp(self):
+        voxel = np.copy(self.pcd_2d)
+        abs_voxel = np.abs(voxel[:, 0] - voxel[-1, 0]) + np.abs(voxel[:, 1] - voxel[-1, 1])
+        idx_arange = np.argsort(abs_voxel, kind='quicksort')
+        voxel = voxel[idx_arange, :]
+        idx_discontinuous = np.where(np.sum(np.abs(np.diff(voxel, axis=0)), axis=1) > 0.05)[0]
+        y_list = np.split(voxel[:, 1], idx_discontinuous)
+        x_list = np.split(voxel[:, 0], idx_discontinuous)
+        new_x = x_list[0][1:-1:2]
+        new_y = y_list[0][1:-1:2]
+        for i in range(len(idx_discontinuous)):
+            interp_y = np.linspace(voxel[idx_discontinuous[i], 1], voxel[idx_discontinuous[i] + 1, 1], 11)
+            interp_x = np.ones(11) * np.mean([voxel[idx_discontinuous[i], 0], voxel[idx_discontinuous[i] + 1, 0]])
+            new_y = np.hstack([new_y, interp_y, y_list[i + 1][1:-1:3]])
+            new_x = np.hstack([new_x, interp_x, x_list[i + 1][1:-1:3]])
+        idx_pre = np.arange(np.shape(new_x)[0])
+        fx = interpolate.interp1d(idx_pre, new_x, "zero")
+        fy = interpolate.interp1d(idx_pre, new_y, "zero")
+        xx_new = np.linspace(0, idx_pre[-1], 200)
+        pcd_new = np.vstack([fx(xx_new), fy(xx_new)]).T
+        self.pcd_2d = pcd_new
 
     def thin(self):
         nb1 = NearestNeighbors(n_neighbors=20, algorithm='auto')
