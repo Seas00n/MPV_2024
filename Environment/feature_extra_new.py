@@ -965,17 +965,15 @@ class pcd_opreator_system(object):
             ax.set_xlim(-1, 1)
             ax.set_ylim(-1, 1)
             plt.text(p_text, -0.2, 'corner: {}'.format(self.corner_situation))
-    def show_fast(self, fast_plot_ax:FastPlotCanvas, type, id=0, p_text=-0.5, p_pcd=None, downsample=2):
+
+    def show_fast(self, fast_plot_ax: FastPlotCanvas, type, id=0, p_text=[-0.5, 0], p_pcd=None, downsample=2):
         if p_pcd is None:
             p_pcd = [0, 0]
-        fast_plot_ax.set_pcd(self.pcd_new[0:-1:downsample]+p_pcd, type)
-        # plt.text(p_text, -0.1, 'id: {}'.format(id))
+        fast_plot_ax.set_pcd(self.pcd_new[0:-1:downsample] + p_pcd, type)
         if self.fea_extra_over:
-            # plt.text(p_text, 0.5, 'theta: {}'.format(round(self.env_rotate, 2)))
-            # plt.text(p_text, -0.3, "time cost:{}ms".format(round(1000 * self.cost_time, 2)))
             if self.env_type == 1:
                 if self.is_fea_A_gotten:
-                    fast_plot_ax.set_fea_A(self.fea_A[0:-1:5]+p_pcd)
+                    fast_plot_ax.set_fea_A(self.fea_A[0:-1:5] + p_pcd)
                 if self.is_fea_B_gotten:
                     fast_plot_ax.set_fea_B(self.fea_B[0:-1:5] + p_pcd)
                 if self.is_fea_C_gotten:
@@ -995,8 +993,7 @@ class pcd_opreator_system(object):
                     fast_plot_ax.set_fea_C(self.fea_C[0:-1:5] + p_pcd)
                 if self.is_fea_D_gotten:
                     fast_plot_ax.set_fea_D(self.fea_D[0:-1:5] + p_pcd)
-            fast_plot_ax.set_info(p_text, 0.5, id, self.corner_situation, self.env_rotate)
-            fast_plot_ax.update_canvas()
+            fast_plot_ax.set_info(p_text[0], p_text[1], type, id, self.corner_situation, self.env_rotate)
 
     def fea_to_env_paras(self):
         xc, yc, w, h = 0, 0, 0, 0

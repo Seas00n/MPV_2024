@@ -11,22 +11,26 @@ class FastPlotCanvas(object):
 
     def __init__(self):
         self.fig, self.ax = plt.subplots()
+        self.fig.canvas.draw()
         self.line_pcd, = self.ax.plot(np.zeros(1, ))
         self.pcd = self.ax.scatter(np.zeros(1, ), np.zeros(1, ), color='r', alpha=0.1)
         self.pcd2 = self.ax.scatter(np.zeros(1, ), np.zeros(1, ), color='b', alpha=0.1)
-        self.fea_A = self.ax.scatter(np.zeros(1, ), np.zeros(1, ), color='m', linewidths=2)
-        self.fea_B = self.ax.scatter(np.zeros(1, ), np.zeros(1, ), color='g', linewidths=2)
-        self.fea_C = self.ax.scatter(np.zeros(1, ), np.zeros(1, ), color='y', linewidths=2)
-        self.fea_D = self.ax.scatter(np.zeros(1, ), np.zeros(1, ), color='tab:purple', linewidths=2)
-        self.fea_E = self.ax.scatter(np.zeros(1, ), np.zeros(1, ), color='tab:green', linewidths=2)
-        self.fea_F = self.ax.scatter(np.zeros(1, ), np.zeros(1, ), color='tab:orange', linewidths=2)
+        self.fea_A = self.ax.scatter(np.zeros(1, ), np.zeros(1, ), color='m', linewidths=1)
+        self.fea_B = self.ax.scatter(np.zeros(1, ), np.zeros(1, ), color='g', linewidths=1)
+        self.fea_C = self.ax.scatter(np.zeros(1, ), np.zeros(1, ), color='y', linewidths=1)
+        self.fea_D = self.ax.scatter(np.zeros(1, ), np.zeros(1, ), color='tab:purple', linewidths=1)
+        self.fea_E = self.ax.scatter(np.zeros(1, ), np.zeros(1, ), color='tab:green', linewidths=1)
+        self.fea_F = self.ax.scatter(np.zeros(1, ), np.zeros(1, ), color='tab:orange', linewidths=1)
         self.text_info = self.ax.text(0, 0, "")
+        self.text_info2 = self.ax.text(0, 0, "")
+        self.traj, = self.ax.plot(np.zeros(1, ), linewidth=1, color='r')
+        self.traj_prediction, = self.ax.plot(np.zeros(1, ), linewidth=2, color='c')
+        self.env_para, = self.ax.plot(np.zeros(1, ), color='r', linewidth=1)
         plt.show(block=False)
 
-
     def update_canvas(self):
-        self.ax.set_xlim(-1, 1)
-        self.ax.set_ylim(-1, 1)
+        self.ax.set_xlim(0, 3)
+        self.ax.set_ylim(-1, 2)
         self.fig.canvas.update()
         self.fig.canvas.flush_events()
         self.ax.draw_artist(self.ax.patch)
@@ -69,13 +73,40 @@ class FastPlotCanvas(object):
         # self.ax.draw_artist(self.ax.patch)
         self.ax.draw_artist(self.fea_F)
 
-    def set_info(self, px, py, id, corner_situation, env_rotate):
-        self.text_info.set_text("id:{},corner_situation:{},env_rotate:{}".format(id,
-                                                                                 round(corner_situation, 2),
-                                                                                 round(env_rotate, 2)))
-        self.text_info.set_x(px)
-        self.text_info.set_y(py)
-        self.ax.draw_artist(self.text_info)
+    def set_info(self, px, py, type, id, corner_situation, env_rotate):
+        if type == "new":
+            self.text_info.set_text("id:{},corner_situation:{},env_rotate:{}".format(id,
+                                                                                     round(corner_situation, 2),
+                                                                                     round(env_rotate, 2)))
+            self.text_info.set_x(px)
+            self.text_info.set_y(py)
+            self.ax.draw_artist(self.text_info)
+        else:
+            self.text_info2.set_text("id:{},corner_situation:{},env_rotate:{}".format(id,
+                                                                                      round(corner_situation, 2),
+                                                                                      round(env_rotate, 2)))
+            self.text_info2.set_x(px)
+            self.text_info2.set_y(py)
+            self.ax.draw_artist(self.text_info2)
+
+    def set_camera_traj(self, camera_x, camera_y, prediction_x=None, prediction_y=None):
+        self.traj.set_xdata(camera_x)
+        self.traj.set_ydata(camera_y)
+        self.ax.draw_artist(self.traj)
+        if prediction_x is not None:
+            self.traj_prediction.set_xdata(prediction_x)
+            self.traj_prediction.set_ydata(prediction_y)
+            self.ax.draw_artist(self.traj_prediction)
+
+    def set_env_paras(self, xc, yc, w, h, p=None):
+        if p is None:
+            p = [0, 0]
+        x = np.array([xc - w + p[0], xc + p[0], xc + p[0], xc + w + p[0]])
+        y = np.array([yc - h + p[1], yc - h + p[1], yc + p[1], yc + p[1]])
+        self.env_para.set_xdata(x)
+        self.env_para.set_ydata(y)
+        self.ax.draw_artist(self.env_para)
+
 
 if __name__ == '__main__':
     fpc = FastPlotCanvas()
