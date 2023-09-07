@@ -111,8 +111,8 @@ if __name__ == '__main__':
                 xmove_pre = camera_dx_buffer[-1]
                 ymove_pre = camera_dy_buffer[-1]
                 if flag_method == 1 or abs(xmove) > 0.1 or abs(ymove) > 0.1:
-                    xmove = xmove_pre
-                    ymove = ymove_pre
+                    xmove = 0
+                    ymove = 0
                     print("对齐失败，使用上一次的xmove_pre = {},ymove_pre = {}".format(xmove_pre, ymove_pre))
 
                 print("当前最终xmove = {}, ymove = {}".format(xmove, ymove))
@@ -139,7 +139,7 @@ if __name__ == '__main__':
                 prediction_y = model_prediction[:, 1]
 
                 xc_new, yc_new, w_new, h_new = pcd_new_os.fea_to_env_paras()
-                if abs(xc_new + yc_new + w_new + h_new) > 0.001:
+                if abs(xc_new + yc_new + w_new + h_new) > 0.04:
                     env_paras_buffer = fifo_data_vec(env_paras_buffer, [xc_new, yc_new, w_new, h_new])
                 else:
                     xc_pre, yc_pre, w_pre, h_pre = env_paras_buffer[-1][0], env_paras_buffer[-1][1], \
@@ -156,22 +156,22 @@ if __name__ == '__main__':
 
                 if len(camera_x_buffer) > 20:
                     pcd_new_os.show_fast(fast_plot_ax, 'new', id=int(i), p_text=[0.2, 0.3],
-                                         p_pcd=[camera_x_buffer[-1], camera_y_buffer[-1]], downsample=8)
+                                         p_pcd=[kalman_x_buffer[-1], kalman_y_buffer[-1]], downsample=8)
                     pcd_pre_os.show_fast(fast_plot_ax, "pre", id=int(i) - 1, p_text=[0.2, 0],
-                                         p_pcd=[camera_x_buffer[-2], camera_y_buffer[-2]], downsample=8)
+                                         p_pcd=[kalman_x_buffer[-2], kalman_y_buffer[-2]], downsample=8)
                     fast_plot_ax.set_camera_traj(np.array(kalman_x_buffer[-20:]), np.array(kalman_y_buffer[-20:]),
                                                  prediction_x=prediction_x, prediction_y=prediction_y)
-                    if abs(xc_new + yc_new + w_new + h_new) > 0.0001:
+                    if abs(xc_new + yc_new + w_new + h_new) > 0.04:
                         fast_plot_ax.set_env_paras(xc_new, yc_new, w_new, h_new,
-                                                   p=[camera_x_buffer[-1], camera_y_buffer[-1]+0.05])
+                                                   p=[kalman_x_buffer[-1], kalman_y_buffer[-1]+0.05])
                     fast_plot_ax.update_canvas()
 
-                img = cv2.cvtColor(env.elegant_img(), cv2.COLORMAP_RAINBOW)
-                add_type(img, env_type=Env_Type(env.type_pred_from_nn), id=i)
-                cv2.imshow("binary", img)
-                key = cv2.waitKey(1)
-                if key == ord('q'):
-                    break
+                # img = cv2.cvtColor(env.elegant_img(), cv2.COLORMAP_RAINBOW)
+                # add_type(img, env_type=Env_Type(env.type_pred_from_nn), id=i)
+                # cv2.imshow("binary", img)
+                # key = cv2.waitKey(1)
+                # if key == ord('q'):
+                #     break
                 print("=======////Totol Time:{}\\\====".format(dt))
 
     except KeyboardInterrupt:
