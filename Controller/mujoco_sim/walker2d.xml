@@ -1,0 +1,84 @@
+<mujoco>
+
+	<visual>
+			<headlight ambient="0.25 0.25 0.25"/>
+	</visual>
+
+	<option timestep="0.001" integrator="RK4" gravity="0 0 0">
+		<flag sensornoise="disable" contact="enable" energy="enable"/>
+	</option>
+
+	<default>
+		<default class="body">
+			<geom type="capsule" condim="1" friction=".7" solimp=".9 .99 .003" solref=".015 1"/>
+			<default class="foot">
+        		<geom size=".027"/>
+        		<default class="foot1">
+          			<geom fromto="-.07 -.01 0 .14 -.03 0"/>
+        		</default>
+        		<default class="foot2">
+          			<geom fromto="-.07 .01 0 .14  .03 0"/>
+        		</default>
+			</default>
+		</default>
+	</default>
+
+
+
+	<worldbody>
+		<geom type="plane" size="1 1 0.1" rgba=".9 0 0 1"/>
+
+		<body name="trunk" pos="0 0 1.45" euler="0 0 0">
+			<joint name="body_x" type="slide" pos="0 0 0.21" axis = "1 0 0" />
+			<joint name="body_z" type="slide" pos="0 0 0.21" axis = "0 0 1" />
+            <geom type="sphere" size=".05" rgba=".9 .9 0 1" mass="5"/>
+			<body name="thigh1" pos="0 0.1 -0.185" euler="0 0 0">
+				<joint name="hip1" type="hinge" axis = "0 1 0" pos="0 0 0.2"/>
+				<geom type="cylinder" size="0.05 0.19" rgba="0 0 .9 0.7" mass="3"/>
+				<body name="shank1" pos="0 0 -0.38" euler="0 0 0">
+					<joint name="knee1" type="hinge" axis = "0 1 0" pos="0 0 0.185"/>
+					<geom type="cylinder" size="0.05 0.18" rgba="0 .9 0 0.7" mass="2.5"/>
+					<body name="foot1" pos="0 0 -0.295" euler="0 0 0">
+						<joint name="ankle1" type="hinge" axis = "0 1 0" pos="0 0 0.12"/>
+<!--						<geom type="capsule" size="0.05" fromto="0 0 0.1  0 0 -.11" rgba=".9 0 0 0.7" mass="1"/>-->
+						<geom type="cylinder" size="0.05 0.11" rgba=".9 0 0 0.7" mass="1"/>
+					</body>
+				</body>
+			</body>
+			<body name="thigh2" pos="0 -0.1 -0.185" euler="0 0 0">
+				<joint name="hip2" type="hinge" axis = "0 1 0" pos="0 0 0.2"/>
+				<geom type="cylinder" size="0.05 0.19" rgba="0 0 .9 0.2" mass="3"/>
+				<body name="shank2" pos="0 0 -0.38" euler="0 0 0">
+					<joint name="knee2" type="hinge" axis = "0 1 0" pos="0 0 0.185"/>
+					<geom type="cylinder" size="0.05 0.18" rgba="0 .9 0 0.2" mass="2.5"/>
+					<body name="foot2" pos="0 0 -0.295" euler="0 0 0">
+						<joint name="ankle2" type="hinge" axis = "0 1 0" pos="0 0 0.12"/>
+<!--						<geom type="capsule" size="0.05" fromto="0 0 0.1  0 0 -.11" rgba=".9 0 0 0.2" mass="1"/>-->
+						<geom type="cylinder" size="0.05 0.11" rgba=".9 0 0 0.7" mass="1"/>
+					</body>
+				</body>
+			</body>
+        </body>
+
+	</worldbody>
+    <actuator>
+		<position name="position_servo_body_x" joint="body_x" kp="1000"/>
+		<velocity name="velocity_servo_body_x" joint="body_x" kv="100"/>
+        <position name="position_servo_body_z" joint="body_z" kp="1000"/>
+		<velocity name="velocity_servo_body_z" joint="body_z" kv="100"/>
+		<motor joint="hip1" name="torque_hip1" gear="1" forcelimited="true" forcerange="-100 100"/>
+		<motor joint="knee1" name="torque_knee1" gear="1" forcelimited="true" forcerange="-100 100"/>
+		<motor joint="ankle1" name="torque_ankle1" gear="1" forcelimited="true" forcerange="-100 100"/>
+		<motor joint="hip2" name="torque_hip2" gear="1" forcelimited="true" forcerange="-1 1"/>
+		<motor joint="knee2" name="torque_knee2" gear="1" forcelimited="true" forcerange="-1 1"/>
+		<motor joint="ankle2" name="torque_ankle2" gear="1"  forcelimited="true" forcerange="-1 1"/>
+	</actuator>
+	<sensor>
+    	<jointactuatorfrc name="frcsensor_hip1" joint="hip1"/>
+    	<jointactuatorfrc name="frcsensor_knee1" joint="knee1"/>
+		<jointactuatorfrc name="frcsensor_ankle1" joint="ankle1"/>
+	</sensor>
+	
+
+
+</mujoco>

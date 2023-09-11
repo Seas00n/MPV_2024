@@ -1,0 +1,6 @@
+Sun Sep 10 23:15:41 2023
+WARNING: mju_openResource: unknown file './xml/hopper.xml'
+
+Sun Sep 10 23:50:19 2023
+WARNING: mju_openResource: unknown file 'walker2d.xml'
+
