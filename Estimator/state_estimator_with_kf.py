@@ -26,6 +26,7 @@ kalman_y_buffer = []
 time_buffer = []
 pcd_os_buffer = [[], []]
 env_paras_buffer = [[], []]
+hbx_pcd2d_save = []
 
 # pcd降采样设置
 down_sample_rate = 5
@@ -46,7 +47,7 @@ if __name__ == '__main__':
     imu_buffer = np.memmap("../Sensor/IM948/imu_knee.npy", dtype='float32', mode='r', shape=(14,))
     pcd_buffer = np.memmap("../Sensor/RoyaleSDK/pcd_buffer.npy", dtype='float32', mode='r', shape=(num_points, 3))
 
-    num_frame = 10000
+    num_frame = 1000
 
     fast_plot_ax = FastPlotCanvas()
     state_kf = StateKalmanFilter()
@@ -176,3 +177,4 @@ if __name__ == '__main__':
 
     except KeyboardInterrupt:
         pass
+
