@@ -78,8 +78,6 @@ class Environment:
         if np.any(chosen_y):
             self.pcd_2d = pcd_chosen_in_body[chosen_idx, 2:0:-1]
             self.pcd_2d[:, 1] = -self.pcd_2d[:, 1]
-            y_max = np.max(chosen_y)
-            z_min = np.min(chosen_z)
             chosen_y = pcd_chosen_in_body[chosen_idx, 1]
             chosen_z = pcd_chosen_in_body[chosen_idx, 2]
             # 和z=0,y=1对齐

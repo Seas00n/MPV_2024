@@ -39,6 +39,7 @@ else:
 
 # 画图设置
 use_fastplot = True
+use_statekf = False
 
 env = Environment()
 str = input("按回车开始")
@@ -49,8 +50,10 @@ if __name__ == '__main__':
 
     num_frame = 1000
 
-    fast_plot_ax = FastPlotCanvas()
-    state_kf = StateKalmanFilter()
+    if use_fastplot == True:
+        fast_plot_ax = FastPlotCanvas()
+    if use_statekf == True:
+        state_kf = StateKalmanFilter()
 
     t0 = time.time()
     imu_initial_buffer = []
@@ -124,20 +127,21 @@ if __name__ == '__main__':
 
                 time_buffer.append(datetime.datetime.now())
                 dt = (time_buffer[-1] - time_buffer[-2]).total_seconds()
-                state_kf.prediction(dt)
-                # state_vec: knee_px knee_py knee_vel knee_q ankle_q
-                state_vec = [camera_x_buffer[-1], camera_y_buffer[-1],
-                             (camera_x_buffer[-1]-camera_x_buffer[-2])/dt,
-                             (camera_y_buffer[-1]-camera_y_buffer[-2])/dt,
-                             0, 0]
-                state_kf.update(state_vec)
+                if use_statekf:
+                    state_kf.prediction(dt)
+                    # state_vec: knee_px knee_py knee_vel knee_q ankle_q
+                    state_vec = [camera_x_buffer[-1], camera_y_buffer[-1],
+                                 (camera_x_buffer[-1]-camera_x_buffer[-2])/dt,
+                                 (camera_y_buffer[-1]-camera_y_buffer[-2])/dt,
+                                0, 0]
+                    state_kf.update(state_vec)
 
-                kalman_x_buffer.append(state_kf.knee_pos[0])
-                kalman_y_buffer.append(state_kf.knee_pos[1])
+                    kalman_x_buffer.append(state_kf.knee_pos[0])
+                    kalman_y_buffer.append(state_kf.knee_pos[1])
 
-                model_prediction = state_kf.model_prediction(num=5, dt=0.02)
-                prediction_x = model_prediction[:, 0]
-                prediction_y = model_prediction[:, 1]
+                    model_prediction = state_kf.model_prediction(num=5, dt=0.02)
+                    prediction_x = model_prediction[:, 0]
+                    prediction_y = model_prediction[:, 1]
 
                 xc_new, yc_new, w_new, h_new = pcd_new_os.fea_to_env_paras()
                 if abs(xc_new + yc_new + w_new + h_new) > 0.04:
@@ -156,23 +160,32 @@ if __name__ == '__main__':
                         env_paras_buffer = fifo_data_vec(env_paras_buffer, [xc_new, yc_new, w_new, h_new])
 
                 if len(camera_x_buffer) > 20:
-                    pcd_new_os.show_fast(fast_plot_ax, 'new', id=int(i), p_text=[0.2, 0.3],
-                                         p_pcd=[kalman_x_buffer[-1], kalman_y_buffer[-1]], downsample=8)
-                    pcd_pre_os.show_fast(fast_plot_ax, "pre", id=int(i) - 1, p_text=[0.2, 0],
-                                         p_pcd=[kalman_x_buffer[-2], kalman_y_buffer[-2]], downsample=8)
-                    fast_plot_ax.set_camera_traj(np.array(kalman_x_buffer[-20:]), np.array(kalman_y_buffer[-20:]),
-                                                 prediction_x=prediction_x, prediction_y=prediction_y)
-                    if abs(xc_new + yc_new + w_new + h_new) > 0.04:
-                        fast_plot_ax.set_env_paras(xc_new, yc_new, w_new, h_new,
-                                                   p=[kalman_x_buffer[-1], kalman_y_buffer[-1]+0.05])
-                    fast_plot_ax.update_canvas()
-
-                # img = cv2.cvtColor(env.elegant_img(), cv2.COLORMAP_RAINBOW)
-                # add_type(img, env_type=Env_Type(env.type_pred_from_nn), id=i)
-                # cv2.imshow("binary", img)
-                # key = cv2.waitKey(1)
-                # if key == ord('q'):
-                #     break
+                    if use_statekf:
+                        pcd_new_os.show_fast(fast_plot_ax, 'new', id=int(i), p_text=[0.2, 0.3],
+                                             p_pcd=[kalman_x_buffer[-1], kalman_y_buffer[-1]], downsample=8)
+                        pcd_pre_os.show_fast(fast_plot_ax, "pre", id=int(i) - 1, p_text=[0.2, 0],
+                                             p_pcd=[kalman_x_buffer[-2], kalman_y_buffer[-2]], downsample=8)
+                        fast_plot_ax.set_camera_traj(np.array(kalman_x_buffer[-20:]), np.array(kalman_y_buffer[-20:]),
+                                                     prediction_x=prediction_x, prediction_y=prediction_y)
+                        if abs(xc_new + yc_new + w_new + h_new) > 0.04:
+                            fast_plot_ax.set_env_paras(xc_new, yc_new, w_new, h_new,
+                                                       p=[kalman_x_buffer[-1], kalman_y_buffer[-1]+0.05])
+                        fast_plot_ax.update_canvas()
+                    else:
+                        pcd_new_os.show_fast(fast_plot_ax, 'new', id=int(i), p_text=[0.2, 0.3],
+                                             p_pcd=[camera_x_buffer[-1], camera_y_buffer[-1]], downsample=8)
+                        pcd_pre_os.show_fast(fast_plot_ax, "pre", id=int(i) - 1, p_text=[0.2, 0],
+                                             p_pcd=[camera_x_buffer[-2], camera_y_buffer[-2]], downsample=8)
+                        if abs(xc_new + yc_new + w_new + h_new) > 0.04:
+                            fast_plot_ax.set_env_paras(xc_new, yc_new, w_new, h_new,
+                                                       p=[camera_x_buffer[-1], camera_y_buffer[-1] + 0.05])
+                        fast_plot_ax.update_canvas()
+                img = cv2.cvtColor(env.elegant_img(), cv2.COLORMAP_RAINBOW)
+                add_type(img, env_type=Env_Type(env.type_pred_from_nn), id=i)
+                cv2.imshow("binary", img)
+                key = cv2.waitKey(1)
+                if key == ord('q'):
+                    break
                 print("=======////Totol Time:{}\\\====".format(dt))
 
     except KeyboardInterrupt:

@@ -34,8 +34,9 @@ import sys
 import xsensdeviceapi as xda
 from threading import Lock
 import numpy as np
-imu_buffer = np.memmap("../IM948/imu_buffer.npy", dtype='float32', mode='r+',
-                           shape=(12,))
+from scipy.spatial.transform import Rotation
+imu_buffer = np.memmap("../IM948/imu_knee.npy", dtype='float32', mode='r+',
+                           shape=(14,))
 
 class XdaCallback(xda.XsCallback):
     def __init__(self, max_buffer_size = 5):
@@ -159,19 +160,19 @@ if __name__ == '__main__':
                 packet = callback.getNextPacket()
 
                 s = ""
-
+                imu_buffer[0] = xda.XsTimeStamp_nowMs()
                 if packet.containsCalibratedData():
                     acc = packet.calibratedAcceleration()
                     s = "Acc X: %.2f" % acc[0] + ", Acc Y: %.2f" % acc[1] + ", Acc Z: %.2f" % acc[2]
-                    imu_buffer[0] = acc[0]
-                    imu_buffer[1] = acc[1]
-                    imu_buffer[2] = acc[2]
+                    imu_buffer[1] = acc[0]
+                    imu_buffer[2] = acc[1]
+                    imu_buffer[3] = acc[2]
 
                     gyr = packet.calibratedGyroscopeData()
                     s += " |Gyr X: %.2f" % gyr[0] + ", Gyr Y: %.2f" % gyr[1] + ", Gyr Z: %.2f" % gyr[2]
-                    imu_buffer[3] = gyr[0]
-                    imu_buffer[4] = gyr[1]
-                    imu_buffer[5] = gyr[2]
+                    imu_buffer[4] = gyr[0]
+                    imu_buffer[5] = gyr[1]
+                    imu_buffer[6] = gyr[2]
 
                     mag = packet.calibratedMagneticField()
                     s += " |Mag X: %.2f" % mag[0] + ", Mag Y: %.2f" % mag[1] + ", Mag Z: %.2f" % mag[2]
@@ -182,13 +183,16 @@ if __name__ == '__main__':
 
                     euler = packet.orientationEuler()
                     s += " |Roll: %.2f" % euler.x() + ", Pitch: %.2f" % euler.y() + ", Yaw: %.2f " % euler.z()
-                    imu_buffer[6] = euler.x()
-                    imu_buffer[7] = euler.y()
-                    imu_buffer[8] = euler.z()
-                    imu_buffer[9] = 0
-                    imu_buffer[10] = 0
-                    imu_buffer[11] = 0
+                    imu_buffer[7] = euler.x()
+                    imu_buffer[8] = euler.y()
+                    imu_buffer[9] = euler.z()
+                    quat = Rotation.from_euler('xyz',[euler.x(),euler.y(),euler.z()],degrees=True).as_quat()
+                    imu_buffer[10] = quat[0]
+                    imu_buffer[11] = quat[1]
+                    imu_buffer[12] = quat[2]
+                    imu_buffer[13] = quat[3]
                     imu_buffer.flush()
+                    print(" |Roll: %.2f" % euler.x() + ", Pitch: %.2f" % euler.y() + ", Yaw: %.2f " % euler.z())
                 if packet.containsLatitudeLongitude():
                     latlon = packet.latitudeLongitude()
                     s += " |Lat: %7.2f" % latlon[0] + ", Lon: %7.2f " % latlon[1]
