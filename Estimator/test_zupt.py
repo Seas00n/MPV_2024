@@ -19,7 +19,7 @@ sys.path.append("/home/yuxuan/Project/MPV_2024/")
 
 
 
-use_data_set = False
+use_data_set = True
 num_frame = 600
 freq = 40
 
