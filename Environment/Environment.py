@@ -12,6 +12,7 @@ from Utils.Algo import *
 from sklearn.neighbors import NearestNeighbors
 from scipy import interpolate
 
+
 def pcd2d_to_3d(pcd_2d, num_rows=5):
     num_points = np.shape(pcd_2d)[0]
     pcd_3d = np.zeros((num_points * num_rows, 3))
@@ -42,7 +43,7 @@ class Environment:
         self.classification_model = torch.load('/home/yuxuan/Project/CCH_Model/realworld_model_epoch_29.pt',
                                                map_location=torch.device('cpu'))
         self.type_pred_from_nn = Env_Type.Levelground
-        self.type_pred_buffer = np.zeros(3, dtype=np.uint64)
+        self.type_pred_buffer = np.zeros(10, dtype=np.uint64)
         self.pcd_2d = np.zeros([0, 2])
         self.pcd_thin = np.zeros([0, 2])
         self.img_binary = np.zeros((100, 100)).astype('uint8')
@@ -50,7 +51,9 @@ class Environment:
         self.R_world_camera = np.identity(3)
         self.R_world_body = np.identity(3)
         self.R_imu_camera = Rotation.from_euler('xyz', [0, 180, 0], degrees=True).as_matrix()
-
+        self.width = 0
+        self.height = 0
+        self.theta = 0
     def pcd_to_binary_image(self, pcd, imu):
         eular = imu[0:3]
         # imu在世界坐标系下的位姿
@@ -67,7 +70,7 @@ class Environment:
         R_body_camera = np.matmul(R_body_imu, self.R_imu_camera)
 
         # 相机安装在机器左测，实际地形取相机偏右侧的部分对应机器正中间
-        chosen_idx = np.logical_and(pcd[:, 0] < 0.05, pcd[:, 0] > 0.02)
+        chosen_idx = np.logical_and(pcd[:, 0] < 0.05, pcd[:, 0] > -0.05)
         pcd_chosen = pcd[chosen_idx, :]
         pcd_chosen_in_body = np.matmul(R_body_camera, pcd_chosen.T).T
         # 选取z0.1-2距离的点
@@ -80,11 +83,22 @@ class Environment:
             self.pcd_2d[:, 1] = -self.pcd_2d[:, 1]
             chosen_y = pcd_chosen_in_body[chosen_idx, 1]
             chosen_z = pcd_chosen_in_body[chosen_idx, 2]
+
             # 和z=0,y=1对齐
-            y_max = np.max(chosen_y)
+            # y_max = np.max(chosen_y)
+            # z_min = np.min(chosen_z)
+            #
+            # chosen_y = chosen_y + (0.99 - y_max)
+            # chosen_z = chosen_z + (0.01 - z_min)
+            # CCH Code
+            y_min = np.min(chosen_y)
             z_min = np.min(chosen_z)
-            chosen_y = chosen_y + (0.99 - y_max)
-            chosen_z = chosen_z + (0.01 - z_min)
+            chosen_y -= y_min
+            chosen_z -= z_min
+            z_max = np.max(chosen_z)
+            chosen_z += 1-z_max
+
+
             # 只取出最前方1m^2内的点
             chosen_idx = np.logical_and(chosen_y > 0, chosen_z < 1)
             chosen_y = chosen_y[chosen_idx]
@@ -113,8 +127,6 @@ class Environment:
         img[:, :, 2] = cv2.resize(self.img_binary, (500, 500))
         return img
 
-
-
     def voxel_interp(self):
         voxel = np.copy(self.pcd_2d)
         abs_voxel = np.abs(voxel[:, 0] - voxel[-1, 0]) + np.abs(voxel[:, 1] - voxel[-1, 1])
@@ -138,10 +150,11 @@ class Environment:
         self.pcd_2d = pcd_new
 
     def thin(self):
-        nb1 = NearestNeighbors(n_neighbors=20, algorithm='auto')
+        nb1 = NearestNeighbors(n_neighbors=10, algorithm='auto')
         nb1.fit(self.pcd_2d)
         _, idx = nb1.kneighbors(self.pcd_2d)
         self.pcd_thin = np.mean(self.pcd_2d[idx, :], axis=1)
+        # self.pcd_thin = self.pcd_2d
 
         xmin = np.min(self.pcd_thin[:, 0])
         idx_chosen = np.where(self.pcd_thin[:, 0] - xmin < 1)[0]
@@ -259,3 +272,43 @@ class Environment:
             w = np.max([np.min(stair_high_x) - np.min(stair_low_x),
                         np.max(stair_low_x) - np.min(stair_low_x)])
         return xc, yc, w, h
+
+    def get_W_H(self):
+        if self.type_pred_from_nn == 1 or self.type_pred_from_nn == 2:
+            X = self.pcd_thin[:, 0].reshape((-1, 1))
+            y = self.pcd_thin[:, 1].reshape((-1, 1))
+            try:
+                inlier_mask1, outlier_mask1, line_y_ransac1, line_X1,_ = RANSAC(X, y, th=0.05)
+                self.width = np.max(X[inlier_mask1]) - np.min(X[inlier_mask1])
+                height = np.mean(y[inlier_mask1])
+                X = X[outlier_mask1]
+                y = y[outlier_mask1]
+            except:
+                return [self.theta, self.width, self.height]
+            try:
+                inlier_mask2, outlier_mask2, line_y_ransac2, line_X2,_ = RANSAC(X, y, th=0.05)
+                self.height = abs(height - (np.mean(y[inlier_mask2])))
+                if self.height > 0.3:
+                    self.height /= 2
+                self.theta = 0
+                return [self.theta, self.width, self.height]
+            except:
+                return [self.theta, self.width, self.height]
+        else:
+            return [0, 0, 0]
+
+    def get_theta(self):
+        if self.type_pred_from_nn == 3 or self.type_pred_from_nn == 4:
+            X = self.pcd_thin[:, 0]
+            y = self.pcd_thin[:, 1]
+            X = X.reshape(-1)
+            x_ = np.mean(X)
+            y_ = np.mean(y)
+            temp = np.sum((X - x_) * (y - y_)) / np.sum((X - x_) ** 2)
+            theta = math.atan(temp)
+            theta = abs(theta / (2 * 3.1415926) * 360)
+            width, height = 0, 0
+
+            return [theta, width, height]
+        else:
+            return [0, 0, 0]

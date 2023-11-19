@@ -2,8 +2,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.spatial.transform import Rotation as R
 
-imu_buffer = np.memmap("imu_buffer.npy", dtype='float32', mode='r',
-                       shape=(12,))
+# imu_buffer = np.memmap("imu_thigh.npy", dtype='float32', mode='r',shape=(14,))
+imu_buffer = np.memmap('/home/yuxuan/Project/fsm_ysc/log/imu_euler_acc.npy', dtype='float32', mode='w+', shape=((9*1+1),))
 
 fig = plt.figure(figsize=(8, 8))
 ax = plt.axes(projection='3d')
@@ -11,7 +11,8 @@ plt.ion()
 
 try:
     while True:
-        eular = [imu_buffer[6], imu_buffer[7], imu_buffer[8]]
+        # eular = [imu_buffer[7], imu_buffer[8], imu_buffer[9]]
+        eular = [imu_buffer[0], imu_buffer[1], imu_buffer[2]]
         plt.cla()
         r_mat = R.from_euler('xyz', [eular[0], eular[1], eular[2]], degrees=True).as_matrix()
         x_ = r_mat[:, 0]

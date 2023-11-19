@@ -17,7 +17,22 @@ def add_type(img, env_type, id = 0):
         cv2.putText(img, "{}".format(env_type), (40, 50), cv2.FONT_HERSHEY_PLAIN, 2.0, (0, 255, 255), 2)
     else:
         cv2.putText(img, "{}".format(env_type), (40, 50), cv2.FONT_HERSHEY_PLAIN, 2.0, (0, 0, 255), 2)
-    cv2.putText(img, "id:{}".format(id), (40, 100), cv2.FONT_HERSHEY_PLAIN, 2.0, (255,255,255),2)
+    cv2.putText(img, "id:{}".format(id), (40, 150), cv2.FONT_HERSHEY_PLAIN, 2.0, (255,255,255),2)
+
+def add_para(img, para_vec,env_type):
+    if env_type == Env_Type.Levelground:
+        return
+    elif env_type == Env_Type.Upstair:
+        cv2.putText(img, "Width:{}m Height:{}m".format(round(para_vec[1],2),round(para_vec[2],2)), (40, 100), cv2.FONT_HERSHEY_PLAIN, 2.0, (255, 0, 0), 2)
+    elif env_type == Env_Type.DownStair:
+        cv2.putText(img, "Width:{}m Height:{}m".format(round(para_vec[1],2),round(para_vec[2],2)), (40, 100), cv2.FONT_HERSHEY_PLAIN, 2.0, (0, 255, 0), 2)
+    elif env_type == Env_Type.Upslope:
+        cv2.putText(img, "Slope:{}deg".format(round(para_vec[0],2)), (40, 100), cv2.FONT_HERSHEY_PLAIN, 2.0, (255, 255, 0), 2)
+    elif env_type == Env_Type.Downslope:
+        cv2.putText(img, "Slope:-{}deg".format(round(para_vec[0],2)), (40, 100), cv2.FONT_HERSHEY_PLAIN, 2.0, (0, 255, 255), 2)
+    else:
+       return
+
 
 def add_collision(ax, xc, yc, w, h, p=None):
     if p is None:

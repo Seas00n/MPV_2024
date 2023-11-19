@@ -51,15 +51,15 @@ pcd_data_temp = np.zeros((int(38528 / down_sample_rate) + 1, 3))
 
 # 传感融合
 use_fusion = False
-imu_params = fusion_algo.ImuParameters()
-imu_params.sigma_a_n = 0.001221
-imu_params.sigma_a_b = 0.000048
-init_nomial_state = np.zeros((11,))
-init_nomial_state[6:8] = np.array([0, -9.81])
-sigma_measurement_p = 0.000025
-sigma_measurement = np.eye(2) * (sigma_measurement_p ** 2)
-estimator = fusion_algo.ESEKF(init_nominal_state=init_nomial_state,
-                              imu_parameters=imu_params)
+# imu_params = fusion_algo.ImuParameters()
+# imu_params.sigma_a_n = 0.001221
+# imu_params.sigma_a_b = 0.000048
+# init_nomial_state = np.zeros((11,))
+# init_nomial_state[6:8] = np.array([0, -9.81])
+# sigma_measurement_p = 0.000025
+# sigma_measurement = np.eye(2) * (sigma_measurement_p ** 2)
+# estimator = fusion_algo.ESEKF(init_nominal_state=init_nomial_state,
+#                               imu_parameters=imu_params)
 
 
 def pcd_handler(channel, data):
@@ -90,7 +90,9 @@ if __name__ == "__main__":
         idx_frame = np.arange(np.shape(imu_dataset)[0])
         num_frame = np.shape(idx_frame)[0]
     else:
-        imu_buffer = np.memmap("../Sensor/IM948/imu_knee.npy", dtype='float32', mode='r', shape=(14,))
+        # imu_buffer = np.memmap("../Sensor/IM948/imu_knee.npy", dtype='float32', mode='r', shape=(14,))
+        imu_buffer = np.memmap("/home/yuxuan/Project/fsm_ysc/log/imu_euler_acc.npy", dtype='float32', mode='r',
+                            shape=(9 * 1 + 1,))  # imu数据
         if use_lcm:
             pcd_msg, pcd_lc = pcd_lcm_initialize()
             subscriber = pcd_lc.subscribe("PCD_DATA", pcd_handler)
@@ -130,7 +132,8 @@ if __name__ == "__main__":
             count += 1
             time.sleep(0.001)
     imu_initial = np.mean(np.array(imu_initial_buffer), axis=0)
-    init_nomial_state[8:11] = imu_initial[7:10]
+    if use_fusion:
+        init_nomial_state[8:11] = imu_initial[7:10]
 
     try:
         for i in range(num_frame):
@@ -152,7 +155,8 @@ if __name__ == "__main__":
                 else:
                     pcd_data_temp = pcd_buffer[:]
                 imu_data = imu_buffer[0:]
-                eular_angle = imu_data[7:10]
+                # eular_angle = imu_data[7:10]
+                eular_angle = imu_data[0:3]
                 env.pcd_to_binary_image(pcd_data_temp, eular_angle)
 
 
@@ -251,12 +255,12 @@ if __name__ == "__main__":
                     print("###############=====Plot:{}=====#########".format((t1 - t0).total_seconds() * 1000))
 
 
-            # img = cv2.cvtColor(env.elegant_img(), cv2.COLORMAP_RAINBOW)
-            # add_type(img, env_type=Env_Type(env.type_pred_from_nn), id=i)
-            # cv2.imshow("binary", img)
-            # key = cv2.waitKey(1)
-            # if key == ord('q'):
-            #     break
+            img = cv2.cvtColor(env.elegant_img(), cv2.COLORMAP_RAINBOW)
+            add_type(img, env_type=Env_Type(env.type_pred_from_nn), id=i)
+            cv2.imshow("binary", img)
+            key = cv2.waitKey(1)
+            if key == ord('q'):
+                break
 
 
             time_buffer.append(datetime.datetime.now())

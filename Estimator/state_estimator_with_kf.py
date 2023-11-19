@@ -45,9 +45,10 @@ env = Environment()
 str = input("按回车开始")
 
 if __name__ == '__main__':
-    imu_buffer = np.memmap("../Sensor/IM948/imu_knee.npy", dtype='float32', mode='r', shape=(14,))
+    imu_buffer = np.memmap("../Sensor/IM948/imu_thigh.npy", dtype='float32', mode='r', shape=(14,))
+    # imu_buffer = np.memmap("/home/yuxuan/Project/fsm_ysc/log/imu_euler_acc.npy", dtype='float32', mode='r',shape=(9 * 1 + 1,))
     pcd_buffer = np.memmap("../Sensor/RoyaleSDK/pcd_buffer.npy", dtype='float32', mode='r', shape=(num_points, 3))
-
+    #
     num_frame = 1000
 
     if use_fastplot == True:
@@ -72,6 +73,7 @@ if __name__ == '__main__':
             pcd_data_temp = pcd_buffer[:]
             imu_data = imu_buffer[0:]
             eular_angle = imu_data[7:10]
+            # eular_angle = imu_data[0:3]
             env.pcd_to_binary_image(pcd_data_temp, eular_angle)
             env.thin()
             if i == 0:
