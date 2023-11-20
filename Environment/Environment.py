@@ -1,4 +1,5 @@
 import io
+import math
 import statistics
 
 import cv2
@@ -54,6 +55,7 @@ class Environment:
         self.width = 0
         self.height = 0
         self.theta = 0
+
     def pcd_to_binary_image(self, pcd, imu):
         eular = imu[0:3]
         # imu在世界坐标系下的位姿
@@ -70,37 +72,36 @@ class Environment:
         R_body_camera = np.matmul(R_body_imu, self.R_imu_camera)
 
         # 相机安装在机器左测，实际地形取相机偏右侧的部分对应机器正中间
-        chosen_idx = np.logical_and(pcd[:, 0] < 0.05, pcd[:, 0] > -0.05)
+        chosen_idx = np.logical_and(pcd[:, 0] < 0.02, pcd[:, 0] > -0.01)
         pcd_chosen = pcd[chosen_idx, :]
         pcd_chosen_in_body = np.matmul(R_body_camera, pcd_chosen.T).T
         # 选取z0.1-2距离的点
-        chosen_idx = np.logical_and(pcd_chosen_in_body[:, 1] < 2.5, pcd_chosen_in_body[:, 1] > 0.01)
+        chosen_idx = np.logical_and(pcd_chosen_in_body[:, 1] < 1, pcd_chosen_in_body[:, 1] > 0.01)
         chosen_y = pcd_chosen_in_body[chosen_idx, 1]
         chosen_z = pcd_chosen_in_body[chosen_idx, 2]
         self.img_binary = np.zeros((100, 100)).astype('uint8')
         if np.any(chosen_y):
             self.pcd_2d = pcd_chosen_in_body[chosen_idx, 2:0:-1]
             self.pcd_2d[:, 1] = -self.pcd_2d[:, 1]
-            chosen_y = pcd_chosen_in_body[chosen_idx, 1]
-            chosen_z = pcd_chosen_in_body[chosen_idx, 2]
+            # chosen_y, chosen_z = self.line_ground_calibrate(chosen_y, chosen_z)
 
             # 和z=0,y=1对齐
-            # y_max = np.max(chosen_y)
-            # z_min = np.min(chosen_z)
-            #
-            # chosen_y = chosen_y + (0.99 - y_max)
-            # chosen_z = chosen_z + (0.01 - z_min)
-            # CCH Code
-            y_min = np.min(chosen_y)
+            y_max = np.max(chosen_y)
             z_min = np.min(chosen_z)
-            chosen_y -= y_min
-            chosen_z -= z_min
-            z_max = np.max(chosen_z)
-            chosen_z += 1-z_max
 
+            chosen_y = chosen_y + (0.99 - y_max)
+            chosen_z = chosen_z + (0.01 - z_min)
+            # CCH Code
+            # y_min = np.min(chosen_y)
+            # z_min = np.min(chosen_z)
+            # chosen_y -= y_min
+            # chosen_z -= z_min
+            # z_max = np.max(chosen_z)
+            # chosen_z += 1-z_max
 
             # 只取出最前方1m^2内的点
-            chosen_idx = np.logical_and(chosen_y > 0, chosen_z < 1)
+            chosen_idx = np.logical_and(np.logical_and(chosen_y > 0, chosen_y < 1),
+                                        np.logical_and(chosen_z > 0, chosen_z < 1))
             chosen_y = chosen_y[chosen_idx]
             chosen_z = chosen_z[chosen_idx]
             pixel_y = np.floor(100 * chosen_y).astype('int')
@@ -117,9 +118,31 @@ class Environment:
         with torch.no_grad():
             output = self.classification_model(img_input)
         pred = output.data.max(1)[1].cpu().numpy()
+        pre_env_type = self.type_pred_from_nn
+        if pre_env_type == 1:
+            if pred == 2:
+                pred = 1
+        elif pre_env_type == 2:
+            if pred == 1:
+                pred = 2
+        elif pre_env_type == 3:
+            if pred == 1 or 2 or 4:
+                pred = 3
+        elif pre_env_type == 4:
+            if pred == 1 or 2 or 3:
+                pred = 4
         self.type_pred_buffer = fifo_data_vec(self.type_pred_buffer, pred)
         self.type_pred_from_nn = statistics.mode(self.type_pred_buffer)
 
+    def line_ground_calibrate(self, chosen_y, chosen_z):
+        k, b = np.polyfit(chosen_y.reshape((-1,)), -chosen_z.reshape((-1,)), 1)
+        line_theta = math.atan(k)
+        print(line_theta)
+        # if abs(line_theta) < 5:
+        #     chosen_y_new = np.cos(line_theta) * chosen_y + np.sin(line_theta) * chosen_z
+        #     chosen_z_new = -np.sin(line_theta) * chosen_y + np.cos(line_theta) * chosen_z
+        #     return chosen_y_new, chosen_z_new
+        return chosen_y, chosen_z
     def elegant_img(self):
         img = np.zeros((500, 500, 3)).astype('uint8')
         img[:, :, 0] = cv2.resize(self.img_binary, (500, 500))
@@ -275,10 +298,10 @@ class Environment:
 
     def get_W_H(self):
         if self.type_pred_from_nn == 1 or self.type_pred_from_nn == 2:
-            X = self.pcd_thin[:, 0].reshape((-1, 1))
-            y = self.pcd_thin[:, 1].reshape((-1, 1))
+            X = self.pcd_2d[:, 0].reshape((-1, 1))
+            y = self.pcd_2d[:, 1].reshape((-1, 1))
             try:
-                inlier_mask1, outlier_mask1, line_y_ransac1, line_X1,_ = RANSAC(X, y, th=0.05)
+                inlier_mask1, outlier_mask1, line_y_ransac1, line_X1, _ = RANSAC(X, y, th=0.05)
                 self.width = np.max(X[inlier_mask1]) - np.min(X[inlier_mask1])
                 height = np.mean(y[inlier_mask1])
                 X = X[outlier_mask1]
@@ -286,7 +309,7 @@ class Environment:
             except:
                 return [self.theta, self.width, self.height]
             try:
-                inlier_mask2, outlier_mask2, line_y_ransac2, line_X2,_ = RANSAC(X, y, th=0.05)
+                inlier_mask2, outlier_mask2, line_y_ransac2, line_X2, _ = RANSAC(X, y, th=0.05)
                 self.height = abs(height - (np.mean(y[inlier_mask2])))
                 if self.height > 0.3:
                     self.height /= 2
@@ -299,14 +322,14 @@ class Environment:
 
     def get_theta(self):
         if self.type_pred_from_nn == 3 or self.type_pred_from_nn == 4:
-            X = self.pcd_thin[:, 0]
-            y = self.pcd_thin[:, 1]
+            X = self.pcd_2d[:, 0]
+            y = self.pcd_2d[:, 1]
             X = X.reshape(-1)
             x_ = np.mean(X)
             y_ = np.mean(y)
             temp = np.sum((X - x_) * (y - y_)) / np.sum((X - x_) ** 2)
             theta = math.atan(temp)
-            theta = abs(theta / (2 * 3.1415926) * 360)
+            theta = abs(theta / np.pi * 180)
             width, height = 0, 0
 
             return [theta, width, height]

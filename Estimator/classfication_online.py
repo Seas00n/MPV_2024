@@ -69,25 +69,27 @@ if __name__ == '__main__':
 
     try:
         for i in range(num_frame):
-            print("----------------------------Frame[{}]------------------------".format(i))
-            print("load binary image and pcd to process")
+            # print("----------------------------Frame[{}]------------------------".format(i))
+            # print("load binary image and pcd to process")
             pcd_data_temp = pcd_buffer[:]
             imu_data = imu_buffer[0:]
             eular_angle = imu_data[7:10]
             # eular_angle = imu_data[0:3]
             env.pcd_to_binary_image(pcd_data_temp, eular_angle)
-            env.thin()
             env.classification_from_img()
+            img = cv2.cvtColor(env.elegant_img(), cv2.COLORMAP_RAINBOW)
+            paras = [0, 0, 0]
+            if env.type_pred_from_nn == 1 or env.type_pred_from_nn == 2:
+                paras = env.get_W_H()
+            elif env.type_pred_from_nn == 3 or env.type_pred_from_nn == 4:
+                paras = env.get_theta()
+                if abs(paras[0]) < 6: # level-ground calibration
+                    env.type_pred_from_nn = 0
+            add_type(img, env_type=Env_Type(env.type_pred_from_nn), id=i)
+            add_para(img, paras, env_type=Env_Type(env.type_pred_from_nn))
+            # given env_type to fsm
             terrain_type[:] = env.type_pred_from_nn
             terrain_type.flush()
-            img = cv2.cvtColor(env.elegant_img(), cv2.COLORMAP_RAINBOW)
-            add_type(img, env_type=Env_Type(env.type_pred_from_nn), id=i)
-            paras = [0, 0, 0]
-            # if env.type_pred_from_nn == 1 or env.type_pred_from_nn == 2:
-            #     paras = env.get_W_H()
-            # elif env.type_pred_from_nn == 3 or env.type_pred_from_nn == 4:
-            #     paras = env.get_theta()
-            # add_para(img, paras, env_type=Env_Type(env.type_pred_from_nn))
             cv2.imshow("binary", img)
             key = cv2.waitKey(1)
             if key == ord('q'):

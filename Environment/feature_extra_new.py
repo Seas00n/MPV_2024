@@ -632,8 +632,7 @@ class pcd_opreator_system(object):
                     if _print_:
                         print("Not get Line1")
                         print(
-                            "line1_length:{}<{}".format(line1_length, th_length) + "diff_x1:{}>{}".format(
-                                np.max(np.abs(diff_x1)), th_interval))
+                            "line1_length:{}<{}".format(line1_length, th_length) + "diff_x1:{}>{}".format(np.max(np.abs(diff_x1)), th_interval))
                         something_print = 1
         except Exception as e:
             line1_success = False
