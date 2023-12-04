@@ -1,6 +1,5 @@
 import sys
-
-sys.path.append("/home/yuxuan/Project/MPV_2024/")
+sys.path.append("//")
 import datetime
 import cv2
 import matplotlib.pyplot as plt
@@ -29,20 +28,29 @@ env_paras_buffer = [[], []]
 hbx_pcd2d_save = []
 
 # pcd降采样设置
-down_sample_rate = 5
+down_sample_rate = 1
 if down_sample_rate % 2 == 1:
     num_points = int(38528 / down_sample_rate) + 1
     if num_points > 38528:
-        num_points = 38528
+        num_points = 38527
 else:
     num_points = int(38528 / down_sample_rate)
 
 # 画图设置
 use_fastplot = True
-use_statekf = False
+use_statekf = True
 
 env = Environment()
 str = input("按回车开始")
+# 2 3次
+#3 3ci
+#4 3次
+#5 3次
+path_to_save = "/media/yuxuan/My Passport/VIO_Experiment/vsMoca/8/"
+for path_ in [path_to_save]:
+    f_list = os.listdir(path_)
+    for file_ in f_list:
+        os.remove(path_+file_)
 
 if __name__ == '__main__':
     imu_buffer = np.memmap("../Sensor/IM948/imu_thigh.npy", dtype='float32', mode='r', shape=(14,))
@@ -70,10 +78,9 @@ if __name__ == '__main__':
         for i in range(num_frame):
             print("----------------------------Frame[{}]------------------------".format(i))
             print("load binary image and pcd to process")
-            pcd_data_temp = pcd_buffer[:]
-            imu_data = imu_buffer[0:]
+            pcd_data_temp = np.copy(pcd_buffer[:])
+            imu_data = np.copy(imu_buffer[0:])
             eular_angle = imu_data[7:10]
-            # eular_angle = imu_data[0:3]
             env.pcd_to_binary_image(pcd_data_temp, eular_angle)
             env.thin()
             if i == 0:
@@ -127,15 +134,20 @@ if __name__ == '__main__':
                 camera_x_buffer.append(camera_x_buffer[-1] + xmove)
                 camera_y_buffer.append(camera_y_buffer[-1] + ymove)
 
+                ##############
+                np.save(path_to_save+"{}_pcd.npy".format(i), pcd_data_temp)
+                np.save(path_to_save+"{}_imu.npy".format(i), imu_data)
+                np.save(path_to_save+"{}_time.npy".format(i), datetime.datetime.now())
+
                 time_buffer.append(datetime.datetime.now())
                 dt = (time_buffer[-1] - time_buffer[-2]).total_seconds()
                 if use_statekf:
                     state_kf.prediction(dt)
                     # state_vec: knee_px knee_py knee_vel knee_q ankle_q
                     state_vec = [camera_x_buffer[-1], camera_y_buffer[-1],
-                                 (camera_x_buffer[-1] - camera_x_buffer[-2]) / dt,
-                                 (camera_y_buffer[-1] - camera_y_buffer[-2]) / dt,
-                                 0, 0]
+                                 (camera_x_buffer[-1]-camera_x_buffer[-2])/dt,
+                                 (camera_y_buffer[-1]-camera_y_buffer[-2])/dt,
+                                0, 0]
                     state_kf.update(state_vec)
 
                     kalman_x_buffer.append(state_kf.knee_pos[0])
@@ -171,17 +183,23 @@ if __name__ == '__main__':
                                                      prediction_x=prediction_x, prediction_y=prediction_y)
                         if abs(xc_new + yc_new + w_new + h_new) > 0.04:
                             fast_plot_ax.set_env_paras(xc_new, yc_new, w_new, h_new,
-                                                       p=[kalman_x_buffer[-1], kalman_y_buffer[-1] + 0.05])
+                                                       p=[kalman_x_buffer[-1], kalman_y_buffer[-1]+0.05])
                         fast_plot_ax.update_canvas()
                     else:
+                        # pcd_new_os.show_fast(fast_plot_ax, 'new', id=int(i), p_text=[0.2, 0.3],
+                        #                      p_pcd=[camera_x_buffer[-1], camera_y_buffer[-1]], downsample=8)
+                        # pcd_pre_os.show_fast(fast_plot_ax, "pre", id=int(i) - 1, p_text=[0.2, 0],
+                        #                      p_pcd=[camera_x_buffer[-2], camera_y_buffer[-2]], downsample=8)
+                        # if abs(xc_new + yc_new + w_new + h_new) > 0.04:
+                        #     fast_plot_ax.set_env_paras(xc_new, yc_new, w_new, h_new,
+                        #                                p=[camera_x_buffer[-1], camera_y_buffer[-1] + 0.05])
+                        # fast_plot_ax.update_canvas()
                         pcd_new_os.show_fast(fast_plot_ax, 'new', id=int(i), p_text=[0.2, 0.3],
                                              p_pcd=[camera_x_buffer[-1], camera_y_buffer[-1]], downsample=8)
-                        pcd_pre_os.show_fast(fast_plot_ax, "pre", id=int(i) - 1, p_text=[0.2, 0],
+                        pcd_new_os.show_fast(fast_plot_ax, 'pre', id=int(i), p_text=[0.2, 0.3],
                                              p_pcd=[camera_x_buffer[-2], camera_y_buffer[-2]], downsample=8)
-                        if abs(xc_new + yc_new + w_new + h_new) > 0.04:
-                            fast_plot_ax.set_env_paras(xc_new, yc_new, w_new, h_new,
-                                                       p=[camera_x_buffer[-1], camera_y_buffer[-1] + 0.05])
-                        fast_plot_ax.update_canvas()
+                        fast_plot_ax.set_camera_traj(np.array(camera_x_buffer), np.array(camera_y_buffer),
+                                                     prediction_x=None, prediction_y=None)
                 img = cv2.cvtColor(env.elegant_img(), cv2.COLORMAP_RAINBOW)
                 add_type(img, env_type=Env_Type(env.type_pred_from_nn), id=i)
                 cv2.imshow("binary", img)
@@ -192,3 +210,4 @@ if __name__ == '__main__':
 
     except KeyboardInterrupt:
         pass
+

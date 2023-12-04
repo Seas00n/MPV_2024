@@ -1,15 +1,6 @@
-import os
-import time
-
-import cv2
-import matplotlib as mpl
-import numpy as np
-
 from Environment import *
-from alignment_knn import align_fea, icp_knn
 from feature_extra_new import *
 from Utils.IO import fifo_data_vec
-from alignment import icp_alignment
 from Plot_ import *
 
 data_save_path = "/media/yuxuan/SSD/IMG_TEST/TEST7/"

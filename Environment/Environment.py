@@ -12,7 +12,7 @@ import scipy
 from Utils.Algo import *
 from sklearn.neighbors import NearestNeighbors
 from scipy import interpolate
-
+import threading
 
 def pcd2d_to_3d(pcd_2d, num_rows=5):
     num_points = np.shape(pcd_2d)[0]
@@ -55,16 +55,18 @@ class Environment:
         self.width = 0
         self.height = 0
         self.theta = 0
+        self.slope_buffer_len = 4
+        self.slope_buffer = np.zeros((self.slope_buffer_len,))
 
     def pcd_to_binary_image(self, pcd, imu):
         eular = imu[0:3]
-        # imu在世界坐标系下的位姿
+        # imu在世界坐标系下的姿态
         self.R_world_imu = Rotation.from_euler('xyz', [eular[0], eular[1], eular[2]],
                                                degrees=True).as_matrix()
-        # camera 在世界坐标系下的位姿
+        # camera 在世界坐标系下的姿态
         self.R_world_camera = np.matmul(self.R_world_imu, self.R_imu_camera)
 
-        # body 在世界坐标系下的位姿
+        # body 在世界坐标系下的姿态
         R_body_imu = Rotation.from_euler('xyz', [eular[0] - 90, 0, 180], degrees=True).as_matrix()
         self.R_world_body = np.matmul(self.R_world_imu, R_body_imu.T)
 
@@ -75,29 +77,25 @@ class Environment:
         chosen_idx = np.logical_and(pcd[:, 0] < 0.02, pcd[:, 0] > -0.01)
         pcd_chosen = pcd[chosen_idx, :]
         pcd_chosen_in_body = np.matmul(R_body_camera, pcd_chosen.T).T
-        # 选取z0.1-2距离的点
-        chosen_idx = np.logical_and(pcd_chosen_in_body[:, 1] < 1, pcd_chosen_in_body[:, 1] > 0.01)
+        # # 选取z0.01-1距离的点
+        chosen_idx = np.logical_and(pcd_chosen_in_body[:, 2] < 1, pcd_chosen_in_body[:, 2] > 0.01)
         chosen_y = pcd_chosen_in_body[chosen_idx, 1]
         chosen_z = pcd_chosen_in_body[chosen_idx, 2]
+
         self.img_binary = np.zeros((100, 100)).astype('uint8')
         if np.any(chosen_y):
             self.pcd_2d = pcd_chosen_in_body[chosen_idx, 2:0:-1]
-            self.pcd_2d[:, 1] = -self.pcd_2d[:, 1]
+            self.pcd_2d[:, 1] = -pcd_chosen_in_body[chosen_idx, 1]
+
             # chosen_y, chosen_z = self.line_ground_calibrate(chosen_y, chosen_z)
 
-            # 和z=0,y=1对齐
+            # # 和z=0,y=1对齐
             y_max = np.max(chosen_y)
             z_min = np.min(chosen_z)
 
             chosen_y = chosen_y + (0.99 - y_max)
             chosen_z = chosen_z + (0.01 - z_min)
-            # CCH Code
-            # y_min = np.min(chosen_y)
-            # z_min = np.min(chosen_z)
-            # chosen_y -= y_min
-            # chosen_z -= z_min
-            # z_max = np.max(chosen_z)
-            # chosen_z += 1-z_max
+
 
             # 只取出最前方1m^2内的点
             chosen_idx = np.logical_and(np.logical_and(chosen_y > 0, chosen_y < 1),
@@ -109,6 +107,7 @@ class Environment:
             self.img_binary = np.zeros((100, 100)).astype('uint8')
             for i in range(np.size(pixel_y)):
                 self.img_binary[pixel_y[i], pixel_z[i]] = 255
+
         else:
             self.pcd_2d = np.zeros([len(chosen_y), 2])
 
@@ -118,6 +117,7 @@ class Environment:
         with torch.no_grad():
             output = self.classification_model(img_input)
         pred = output.data.max(1)[1].cpu().numpy()
+        print("网络预测:{}".format(pred))
         pre_env_type = self.type_pred_from_nn
         if pre_env_type == 1:
             if pred == 2:
@@ -126,13 +126,15 @@ class Environment:
             if pred == 1:
                 pred = 2
         elif pre_env_type == 3:
-            if pred == 1 or 2 or 4:
+            if pred == 4:
                 pred = 3
         elif pre_env_type == 4:
-            if pred == 1 or 2 or 3:
+            if pred == 3:
                 pred = 4
         self.type_pred_buffer = fifo_data_vec(self.type_pred_buffer, pred)
+        print(self.type_pred_buffer)
         self.type_pred_from_nn = statistics.mode(self.type_pred_buffer)
+        print("众数:{}".format(self.type_pred_from_nn))
 
     def line_ground_calibrate(self, chosen_y, chosen_z):
         k, b = np.polyfit(chosen_y.reshape((-1,)), -chosen_z.reshape((-1,)), 1)
@@ -143,11 +145,13 @@ class Environment:
         #     chosen_z_new = -np.sin(line_theta) * chosen_y + np.cos(line_theta) * chosen_z
         #     return chosen_y_new, chosen_z_new
         return chosen_y, chosen_z
+
     def elegant_img(self):
         img = np.zeros((500, 500, 3)).astype('uint8')
-        img[:, :, 0] = cv2.resize(self.img_binary, (500, 500))
-        img[:, :, 1] = cv2.resize(self.img_binary, (500, 500))
-        img[:, :, 2] = cv2.resize(self.img_binary, (500, 500))
+        img_binary_copy = np.copy(self.img_binary)
+        img[:, :, 0] = cv2.resize(img_binary_copy, (500, 500))
+        img[:, :, 1] = cv2.resize(img_binary_copy, (500, 500))
+        img[:, :, 2] = cv2.resize(img_binary_copy, (500, 500))
         return img
 
     def voxel_interp(self):
@@ -321,17 +325,26 @@ class Environment:
             return [0, 0, 0]
 
     def get_theta(self):
-        if self.type_pred_from_nn == 3 or self.type_pred_from_nn == 4:
+        if self.type_pred_from_nn == 0 or self.type_pred_from_nn == 3 or self.type_pred_from_nn == 4:
             X = self.pcd_2d[:, 0]
             y = self.pcd_2d[:, 1]
             X = X.reshape(-1)
             x_ = np.mean(X)
             y_ = np.mean(y)
             temp = np.sum((X - x_) * (y - y_)) / np.sum((X - x_) ** 2)
-            theta = math.atan(temp)
-            theta = abs(theta / np.pi * 180)
-            width, height = 0, 0
-
-            return [theta, width, height]
+            theta = np.arctan(temp)
+            # k, b = np.polyfit(self.pcd_2d[:, 0].reshape((-1,)), self.pcd_2d[:, 1].reshape((-1,)), 1)
+            # theta = math.atan(k)
+            theta = theta / np.pi * 180
+            self.slope_buffer[0:-1] = self.slope_buffer[1:]
+            self.slope_buffer[-1] = theta
+            print("坡度缓冲区:{}".format(self.slope_buffer))
+            # self.theta = np.mean(self.slope_buffer)
+            self.theta = statistics.mode(self.slope_buffer)
+            print(self.theta)
+            self.width, self.height = 0, 0
+            return [self.theta, self.width, self.height]
         else:
             return [0, 0, 0]
+    def clear_slope_buffer(self):
+        self.slope_buffer = np.zeros((self.slope_buffer_len,))

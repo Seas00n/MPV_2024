@@ -117,7 +117,6 @@ class model(nn.Module):
             nn.BatchNorm1d(32),
             nn.ReLU(True),
             nn.Linear(32, 5),
-
         )
 
     def forward(self, x):

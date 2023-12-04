@@ -65,8 +65,8 @@ def load_imu_parameters(sigma_a_n, sigma_w_n, sigma_a_b, sigma_w_b):
 if __name__ == "__main__":
 
     fig, axes = plt.subplots(3, 1, sharex=False)
-    imu_ankle_data_all = np.load("imu_ankle_zupt.npy")
-    imu_knee_data_all = np.load("imu_knee_zupt.npy")
+    imu_ankle_data_all = np.load("imu_ankle_zupt3.npy")
+    imu_knee_data_all = np.load("imu_knee_zupt3.npy")
     imu_ankle_parameters = load_imu_parameters(sigma_a_n=4.3869000987044300e-03,
                                                sigma_w_n=2.1996304018440254e-02,
                                                sigma_a_b=3.4394710418253510e-04,

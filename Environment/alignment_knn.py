@@ -125,7 +125,7 @@ def align_fea(pcd_new: pcd_opreator_system,
                 fea_component_new[5] = fea_len
                 fea_component_pre[5] = fea_len
 
-            if np.shape(pcd_to_align_new)[0] < 30:
+            if np.shape(pcd_to_align_new)[0] <= 0:
                 pcd_align_flag = 1
             else:
                 pcd_align_flag = 0
@@ -148,7 +148,7 @@ def del_miss(indeces, dist, max_dist, th_rate=0.7):
     return np.array(indeces[:][np.where(dist[:] < th_dist)[0]])
 
 
-def icp_knn(pcd_s, pcd_t, max_iterate=50):
+def icp_knn(pcd_s, pcd_t, max_iterate=100):
     min_len = min(np.shape(pcd_s)[0], np.shape(pcd_t)[0])
     pcd_s_temp = pcd_s[0:min_len, :].astype(np.float32)
     pcd_t_temp = pcd_t[0:min_len, :].astype(np.float32)

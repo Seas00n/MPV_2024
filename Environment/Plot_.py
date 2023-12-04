@@ -29,7 +29,7 @@ def add_para(img, para_vec,env_type):
     elif env_type == Env_Type.Upslope:
         cv2.putText(img, "Slope:{}deg".format(round(para_vec[0],2)), (40, 100), cv2.FONT_HERSHEY_PLAIN, 2.0, (255, 255, 0), 2)
     elif env_type == Env_Type.Downslope:
-        cv2.putText(img, "Slope:-{}deg".format(round(para_vec[0],2)), (40, 100), cv2.FONT_HERSHEY_PLAIN, 2.0, (0, 255, 255), 2)
+        cv2.putText(img, "Slope:{}deg".format(round(para_vec[0],2)), (40, 100), cv2.FONT_HERSHEY_PLAIN, 2.0, (0, 255, 255), 2)
     else:
        return
 

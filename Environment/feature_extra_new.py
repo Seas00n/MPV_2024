@@ -180,7 +180,7 @@ class pcd_opreator_system(object):
 
         if line1_success:
             self.num_line = 1
-            x1, y1, mean_line1, idx1 = self.line_ground_calibrate(idx1)
+            # x1, y1, mean_line1, idx1 = self.line_ground_calibrate(idx1)
         else:
             self.num_line = 0
             return
@@ -309,12 +309,11 @@ class pcd_opreator_system(object):
         line1_success = False
         x1, y1, idx1 = [], [], []
         mean_line1 = 0
-        x1, y1, mean_line1, idx1, line1_success = self.ransac_process_1(th_ransac_k=0.15, th_length=0.1,
-                                                                        th_interval=0.15,
-                                                                        _print_=_print_)
+        x1, y1, mean_line1, idx1, line1_success = self.ransac_process_1(th_ransac_k=0.15, th_length=0.05,
+                                                                        th_interval=0.15, _print_=_print_)
         if line1_success:
             self.num_line = 1
-            x1, y1, mean_line1, idx1 = self.line_ground_calibrate(idx1)
+            # x1, y1, mean_line1, idx1 = self.line_ground_calibrate(idx1)
         else:
             self.num_line = 0
             return
@@ -323,7 +322,7 @@ class pcd_opreator_system(object):
         x2, y2, idx2 = [], [], []
         mean_line2 = 0
         if line1_success:
-            x2, y2, mean_line2, idx2, line2_success = self.ransac_process_2(idx1, th_ransac_k=0.12, th_length=0.05,
+            x2, y2, mean_line2, idx2, line2_success = self.ransac_process_2(idx1, th_ransac_k=0.12, th_length=0.02,
                                                                             th_interval=0.05, _print_=_print_)
             if line2_success:
                 self.num_line = 2
@@ -437,16 +436,16 @@ class pcd_opreator_system(object):
             idx_continuous = np.where(np.abs(diff_under[:, 1]) < 0.005)[0]
             under_continuous_part = under_normal_part[idx_continuous, :]
             if np.shape(idx_continuous)[0] > 10 and np.nanmean(stair_low_y) - np.min(
-                    under_continuous_part[:, 1]) > 0.02:
+                    under_continuous_part[:, 1]) > 0.005:
                 self.has_part_under_line = True
         else:
             self.has_part_under_line = False
 
         self.has_part_left_line = False
         print("Left_line:{}".format(np.min(stair_low_x) - xmin))
-        if self.has_part_under_line and np.min(stair_low_x) - xmin > 0.03:
+        if self.has_part_under_line and np.min(stair_low_x) - xmin > 0.02:
             left_min_y = self.pcd_new[np.argmin(self.pcd_new[:, 0]), 1]
-            if np.nanmean(stair_low_y) - left_min_y > 0.015:
+            if np.nanmean(stair_low_y) - left_min_y > 0.01:
                 idx_under_left = np.where(np.abs(self.pcd_new[:, 1] - left_min_y) < 0.015)[0]
                 under_left_part = self.pcd_new[idx_under_left, :]
                 if ax is not None:
@@ -465,23 +464,23 @@ class pcd_opreator_system(object):
         xmax = np.max(self.pcd_new[:, 0])
         self.has_part_up_line = False
         print("Up_line:{}".format(ymax - np.nanmean(stair_high_y)))
-        if ymax - np.nanmean(stair_high_y) > 0.02:
+        if ymax - np.nanmean(stair_high_y) > 0.01:
             idx_up = np.logical_and(self.pcd_new[:, 1] > np.nanmean(stair_high_y),
                                     np.abs(self.pcd_new[:, 0] - np.max(stair_high_x)) < 0.015)
             up_normal_part = self.pcd_new[idx_up, :]
             diff_up = np.diff(up_normal_part, axis=0)
             idx_continuous = np.where(np.abs(diff_up[:, 1]) < 0.005)[0]
             up_continuous_part = up_normal_part[idx_continuous, :]
-            if np.shape(idx_continuous)[0] > 10 and np.max(up_continuous_part[:, 1]) - np.nanmean(stair_high_y) > 0.02:
+            if np.shape(idx_continuous)[0] > 10 and np.max(up_continuous_part[:, 1]) - np.nanmean(stair_high_y) > 0.005:
                 self.has_part_up_line = True
         else:
             self.has_part_up_line = False
 
         self.has_part_right_line = False
         print("Right_line:{}".format(xmax - np.max(stair_high_x)))
-        if self.has_part_up_line and xmax - np.max(stair_high_x) > 0.04:
+        if self.has_part_up_line and xmax - np.max(stair_high_x) > 0.02:
             right_max_y = self.pcd_new[np.argmax(self.pcd_new[:, 0]), 1]
-            if right_max_y - np.nanmean(stair_high_y) > 0.02:
+            if right_max_y - np.nanmean(stair_high_y) > 0.01:
                 idx_up_right = np.where(np.abs(self.pcd_new[:, 1] - right_max_y) < 0.015)[0]
                 up_right_part = self.pcd_new[idx_up_right, :]
                 if ax is not None:
@@ -489,8 +488,7 @@ class pcd_opreator_system(object):
                 diff_up_right = np.diff(up_right_part, axis=0)
                 idx_continuous = np.where(np.abs(diff_up_right[:, 0]) < 0.005)[0]
                 right_part_continuous = up_right_part[idx_continuous]
-                if np.shape(right_part_continuous)[0] > 10 and np.max(right_part_continuous) - np.max(
-                        stair_high_x) > 0.03:
+                if np.shape(right_part_continuous)[0] > 10 and np.max(right_part_continuous) - np.max(stair_high_x) > 0.02:
                     self.has_part_right_line = True
                     # 由于步骤比较繁琐这里直接存储right_part_continuous
                     self.pcd_right_up_part_sa = right_part_continuous
@@ -709,8 +707,8 @@ class pcd_opreator_system(object):
                 print('A feature finding')
             Acenter_x = np.min(self.stair_low_x)
             Acenter_y = self.stair_low_y[np.argmin(self.stair_low_x)][0]
-            idx_fea_A = np.logical_and(np.abs(self.pcd_new[:, 0] - Acenter_x) < 0.05,
-                                       np.abs(self.pcd_new[:, 1] - Acenter_y) < 0.05)
+            idx_fea_A = np.logical_and(np.abs(self.pcd_new[:, 0] - Acenter_x) < 0.02,
+                                       np.abs(self.pcd_new[:, 1] - Acenter_y) < 0.02)
             if np.shape(self.pcd_new[idx_fea_A, 0])[0] > 10:
                 fea_Ax_new = self.pcd_new[idx_fea_A, 0].reshape((-1, 1))
                 fea_Ay_new = self.pcd_new[idx_fea_A, 1].reshape((-1, 1))
@@ -719,9 +717,9 @@ class pcd_opreator_system(object):
             else:
                 mean_Ax = Acenter_x
                 mean_Ay = Acenter_y
-                rand = np.random.rand(20).reshape((-1, 1))
+                rand = np.random.rand(15).reshape((-1, 1))
                 fea_Ax_new = mean_Ax + rand * 0.001
-                rand = np.random.rand(20).reshape((-1, 1))
+                rand = np.random.rand(15).reshape((-1, 1))
                 fea_Ay_new = mean_Ay + rand * 0.001
                 if _print_:
                     print("complete feature A:{},{}".format(Acenter_x, Acenter_y))
@@ -737,8 +735,8 @@ class pcd_opreator_system(object):
                 print('B feature finding')
             Bcenter_x = stair_low_right_corner_x = max(np.min(self.stair_high_x), np.max(self.stair_low_x))
             Bcenter_y = stair_low_right_corner_y = np.nanmean(self.stair_low_y)
-            idx_fea_B = np.logical_and(np.abs(self.pcd_new[:, 0] - stair_low_right_corner_x) < 0.05,
-                                       np.abs(self.pcd_new[:, 1] - stair_low_right_corner_y) < 0.05)
+            idx_fea_B = np.logical_and(np.abs(self.pcd_new[:, 0] - stair_low_right_corner_x) < 0.02,
+                                       np.abs(self.pcd_new[:, 1] - stair_low_right_corner_y) < 0.02)
             if np.shape(idx_fea_B)[0] > 10:
                 fea_Bx_new = self.pcd_new[idx_fea_B, 0].reshape((-1, 1))
                 fea_By_new = self.pcd_new[idx_fea_B, 1].reshape((-1, 1))
@@ -747,9 +745,9 @@ class pcd_opreator_system(object):
             else:
                 mean_Bx = Bcenter_x
                 mean_By = Bcenter_y
-                rand = np.random.rand(20).reshape((-1, 1))
+                rand = np.random.rand(15).reshape((-1, 1))
                 fea_Bx_new = mean_Bx + rand * 0.001
-                rand = np.random.rand(20).reshape((-1, 1))
+                rand = np.random.rand(15).reshape((-1, 1))
                 fea_By_new = mean_By + rand * 0.001
                 if _print_:
                     print("complete feature B:{},{}".format(Bcenter_x, Bcenter_y))
@@ -774,8 +772,8 @@ class pcd_opreator_system(object):
                 Ccenter_x = np.min(self.stair_high_x)
                 Ccenter_y = self.stair_high_y[np.argmin(self.stair_high_x)][0]
 
-            idx_fea_C = np.logical_and(np.abs(self.pcd_new[:, 0] - Ccenter_x) < 0.05,
-                                       np.abs(self.pcd_new[:, 1] - Ccenter_y) < 0.05)
+            idx_fea_C = np.logical_and(np.abs(self.pcd_new[:, 0] - Ccenter_x) < 0.02,
+                                       np.abs(self.pcd_new[:, 1] - Ccenter_y) < 0.02)
             if np.shape(idx_fea_C)[0] > 10:
                 fea_Cx_new = self.pcd_new[idx_fea_C, 0].reshape((-1, 1))
                 fea_Cy_new = self.pcd_new[idx_fea_C, 1].reshape((-1, 1))
@@ -784,9 +782,9 @@ class pcd_opreator_system(object):
             else:
                 mean_Cx = Ccenter_x
                 mean_Cy = Ccenter_y
-                rand = np.random.rand(20).reshape((-1, 1))
+                rand = np.random.rand(15).reshape((-1, 1))
                 fea_Cx_new = mean_Cx + rand * 0.001
-                rand = np.random.rand(20).reshape((-1, 1))
+                rand = np.random.rand(15).reshape((-1, 1))
                 fea_Cy_new = mean_Cy + rand * 0.001
                 if _print_:
                     print("complete feature C:{},{}".format(Ccenter_x, Ccenter_y))
@@ -840,8 +838,8 @@ class pcd_opreator_system(object):
                 Ecenter_x = min(np.max(self.stair_high_x), np.min(self.stair_low_x))
                 Ecenter_y = np.nanmean(self.stair_low_y)
 
-            idx_fea_E = np.logical_and(np.abs(self.pcd_new[:, 0] - Ecenter_x) < 0.03,
-                                       np.abs(self.pcd_new[:, 1] - Ecenter_y) < 0.03)
+            idx_fea_E = np.logical_and(np.abs(self.pcd_new[:, 0] - Ecenter_x) < 0.02,
+                                       np.abs(self.pcd_new[:, 1] - Ecenter_y) < 0.02)
             if np.shape(self.pcd_new[idx_fea_E, 0])[0] > 10:
                 fea_Ex_new = self.pcd_new[idx_fea_E, 0].reshape((-1, 1))
                 fea_Ey_new = self.pcd_new[idx_fea_E, 1].reshape((-1, 1))
@@ -872,8 +870,8 @@ class pcd_opreator_system(object):
             else:
                 Fcenter_x = np.max(self.stair_low_x)
                 Fcenter_y = np.nanmean(self.stair_low_y)
-            idx_fea_F = np.logical_and(np.abs(self.pcd_new[:, 0] - Fcenter_x) < 0.03,
-                                       np.abs(self.pcd_new[:, 1] - Fcenter_y) < 0.03)
+            idx_fea_F = np.logical_and(np.abs(self.pcd_new[:, 0] - Fcenter_x) < 0.02,
+                                       np.abs(self.pcd_new[:, 1] - Fcenter_y) < 0.02)
             if np.shape(self.pcd_new[idx_fea_F, 0])[0] > 10:
                 fea_Fx_new = self.pcd_new[idx_fea_F, 0].reshape((-1, 1))
                 fea_Fy_new = self.pcd_new[idx_fea_F, 1].reshape((-1, 1))

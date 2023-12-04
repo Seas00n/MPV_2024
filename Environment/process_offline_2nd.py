@@ -1,12 +1,10 @@
-import os
-import cv2
 import matplotlib as mpl
 
 from Environment import *
 from alignment_knn import *
 from feature_extra_new import *
 from Utils.IO import fifo_data_vec
-from alignment import icp_alignment
+from Environment.backup.alignment import icp_alignment
 imu_buffer_path = "../Sensor/IM948/imu_buffer.npy"
 data_save_path = "/media/yuxuan/SSD/IMG_TEST/TEST4/"  # 3
 

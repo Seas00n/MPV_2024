@@ -29,8 +29,8 @@ class FastPlotCanvas(object):
         plt.show(block=False)
 
     def update_canvas(self):
-        self.ax.set_xlim(0, 3)
-        self.ax.set_ylim(-1, 2)
+        self.ax.set_xlim(0, 1.5)
+        self.ax.set_ylim(-1, 0.5)
         self.fig.canvas.update()
         self.fig.canvas.flush_events()
         self.ax.draw_artist(self.ax.patch)
@@ -106,6 +106,9 @@ class FastPlotCanvas(object):
         self.env_para.set_xdata(x)
         self.env_para.set_ydata(y)
         self.ax.draw_artist(self.env_para)
+
+    def close(self):
+        self.fig.close()
 
 
 if __name__ == '__main__':

@@ -10,7 +10,7 @@ def RANSAC(X, y, th):
         x = X_subset
         y = y_subset
 
-        if abs(x[1] - x[0]) < 0.05:
+        if abs(x[1] - x[0]) < 0.025:
             return False
         else:
             k = (y[1] - y[0]) / (x[1] - x[0])
@@ -24,9 +24,9 @@ def RANSAC(X, y, th):
 
         return r
 
-    ransac = linear_model.RANSACRegressor(min_samples=2, residual_threshold=0.025,
+    ransac = linear_model.RANSACRegressor(min_samples=2, residual_threshold=0.03,
                                           is_data_valid=is_data_valid,
-                                          max_trials=400)
+                                          max_trials=500)
     ransac.fit(X, y)
     inlier_mask = ransac.inlier_mask_
     outlier_mask = np.logical_not(inlier_mask)
