@@ -12,7 +12,7 @@ import scipy
 from Utils.Algo import *
 from sklearn.neighbors import NearestNeighbors
 from scipy import interpolate
-import threading
+
 
 def pcd2d_to_3d(pcd_2d, num_rows=5):
     num_points = np.shape(pcd_2d)[0]
@@ -95,7 +95,6 @@ class Environment:
 
             chosen_y = chosen_y + (0.99 - y_max)
             chosen_z = chosen_z + (0.01 - z_min)
-
 
             # 只取出最前方1m^2内的点
             chosen_idx = np.logical_and(np.logical_and(chosen_y > 0, chosen_y < 1),
@@ -346,5 +345,6 @@ class Environment:
             return [self.theta, self.width, self.height]
         else:
             return [0, 0, 0]
+
     def clear_slope_buffer(self):
         self.slope_buffer = np.zeros((self.slope_buffer_len,))
