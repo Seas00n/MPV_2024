@@ -37,19 +37,20 @@ class pcd_opreator_system(object):
         self.cost_time = 0
 
     def get_fea(self, _print_=False, ax=None, idx=0, nn_class=0):
-        self.env_type = self.get_env_type_up_or_down(ax=ax, nn_class_prior=nn_class)
+        # self.env_type = self.get_env_type_up_or_down(ax=ax, nn_class_prior=nn_class)
         t0 = datetime.datetime.now()
+        self.env_type = 1
         if _print_:
             print("Env_Type:{}".format(self.env_type))
             plt.text(0, 0.1, "Env_Type:{}".format(self.env_type))
         if self.env_type == 1:
-            self.get_fea_sa(_print_=_print_, ax=None, idx=idx)
+            self.get_fea_sa(_print_=_print_, ax=ax, idx=idx)
             self.fea_extra_over = True
         if self.env_type == 2:
-            self.get_fea_sd(_print_=_print_, ax=None, idx=idx)
+            self.get_fea_sd(_print_=_print_, ax=ax, idx=idx)
             self.fea_extra_over = True
         if self.env_type == 3:
-            self.get_fea_ob(_print_=_print_, ax=None, idx=idx)
+            self.get_fea_ob(_print_=_print_, ax=ax, idx=idx)
             self.fea_extra_over = True
         diff = datetime.datetime.now() - t0
         self.cost_time = diff.total_seconds()
@@ -63,7 +64,7 @@ class pcd_opreator_system(object):
         y_xmin = self.pcd_new[np.argmin(self.pcd_new[:, 0]), 1]
         y_xmax = self.pcd_new[np.argmax(self.pcd_new[:, 0]), 1]
 
-        if (nn_class_prior == 0 or nn_class_prior == 3 or nn_class_prior == 4):
+        if nn_class_prior == 0:
             # 进行地面水平矫正
             line_theta = math.atan((y_xmax - y_xmin) / (xmax - xmin))
             if abs(line_theta) < 0.2:
@@ -116,14 +117,14 @@ class pcd_opreator_system(object):
             line_lowest = self.pcd_new[np.where(np.abs(self.pcd_new[:, 1] - ymin_left) < 0.015)[0], :]
             y_line_lest = np.nanmean(line_lowest[:, 1])
             x_line_lest = line_lowest[np.argmin(line_lowest[:, 0]), 0]
-            if ax is not None:
-                print("not check Right and check Left")
-                ax.scatter(x_line_lest, y_line_lest, color='y', linewidths=4)
             if abs(y_line_hest - y_line_lest) < 0.02:
                 env_type = 0
                 return env_type
-            elif y_line_hest - y_line_lest > 0.02 and xmin_line_hest - x_line_lest > 0.02:
+            elif y_line_hest - y_line_lest > 0.02 and xmin_line_hest - x_line_lest > 0:
                 env_type = 1
+                if ax is not None:
+                    print("not check Right and check Left")
+                    ax.scatter(x_line_lest, y_line_lest, color='y', linewidths=4)
                 return env_type
             else:
                 return 0
@@ -180,7 +181,7 @@ class pcd_opreator_system(object):
 
         if line1_success:
             self.num_line = 1
-            # x1, y1, mean_line1, idx1 = self.line_ground_calibrate(idx1)
+            x1, y1, mean_line1, idx1 = self.line_ground_calibrate(idx1)
         else:
             self.num_line = 0
             return
@@ -707,8 +708,8 @@ class pcd_opreator_system(object):
                 print('A feature finding')
             Acenter_x = np.min(self.stair_low_x)
             Acenter_y = self.stair_low_y[np.argmin(self.stair_low_x)][0]
-            idx_fea_A = np.logical_and(np.abs(self.pcd_new[:, 0] - Acenter_x) < 0.02,
-                                       np.abs(self.pcd_new[:, 1] - Acenter_y) < 0.02)
+            idx_fea_A = np.logical_and(np.abs(self.pcd_new[:, 0] - Acenter_x) < 0.015,
+                                       np.abs(self.pcd_new[:, 1] - Acenter_y) < 0.015)
             if np.shape(self.pcd_new[idx_fea_A, 0])[0] > 10:
                 fea_Ax_new = self.pcd_new[idx_fea_A, 0].reshape((-1, 1))
                 fea_Ay_new = self.pcd_new[idx_fea_A, 1].reshape((-1, 1))
@@ -718,9 +719,9 @@ class pcd_opreator_system(object):
                 mean_Ax = Acenter_x
                 mean_Ay = Acenter_y
                 rand = np.random.rand(15).reshape((-1, 1))
-                fea_Ax_new = mean_Ax + rand * 0.001
+                fea_Ax_new = mean_Ax + rand * 0.0001
                 rand = np.random.rand(15).reshape((-1, 1))
-                fea_Ay_new = mean_Ay + rand * 0.001
+                fea_Ay_new = mean_Ay + rand * 0.0001
                 if _print_:
                     print("complete feature A:{},{}".format(Acenter_x, Acenter_y))
             self.Acenter = np.array([Acenter_x, Acenter_y])
@@ -734,9 +735,11 @@ class pcd_opreator_system(object):
             if _print_:
                 print('B feature finding')
             Bcenter_x = stair_low_right_corner_x = max(np.min(self.stair_high_x), np.max(self.stair_low_x))
+            # Bcenter_x = stair_low_right_corner_x = np.min(self.stair_high_x)
             Bcenter_y = stair_low_right_corner_y = np.nanmean(self.stair_low_y)
-            idx_fea_B = np.logical_and(np.abs(self.pcd_new[:, 0] - stair_low_right_corner_x) < 0.02,
-                                       np.abs(self.pcd_new[:, 1] - stair_low_right_corner_y) < 0.02)
+            # Bcenter_y = stair_low_right_corner_y = self.stair_low_y[np.argmax(self.stair_low_x)][0]
+            idx_fea_B = np.logical_and(np.abs(self.pcd_new[:, 0] - stair_low_right_corner_x) < 0.015,
+                                       np.abs(self.pcd_new[:, 1] - stair_low_right_corner_y) < 0.015)
             if np.shape(idx_fea_B)[0] > 10:
                 fea_Bx_new = self.pcd_new[idx_fea_B, 0].reshape((-1, 1))
                 fea_By_new = self.pcd_new[idx_fea_B, 1].reshape((-1, 1))
@@ -746,9 +749,9 @@ class pcd_opreator_system(object):
                 mean_Bx = Bcenter_x
                 mean_By = Bcenter_y
                 rand = np.random.rand(15).reshape((-1, 1))
-                fea_Bx_new = mean_Bx + rand * 0.001
+                fea_Bx_new = mean_Bx + rand * 0.0001
                 rand = np.random.rand(15).reshape((-1, 1))
-                fea_By_new = mean_By + rand * 0.001
+                fea_By_new = mean_By + rand * 0.0001
                 if _print_:
                     print("complete feature B:{},{}".format(Bcenter_x, Bcenter_y))
             self.Bcenter = np.array([Bcenter_x, Bcenter_y])
@@ -770,10 +773,11 @@ class pcd_opreator_system(object):
             else:
                 print("Feature C finding in Condition2")
                 Ccenter_x = np.min(self.stair_high_x)
-                Ccenter_y = self.stair_high_y[np.argmin(self.stair_high_x)][0]
+                # Ccenter_y = self.stair_high_y[np.argmin(self.stair_high_x)][0]
+                Ccenter_y = np.nanmean(self.stair_high_y)
 
-            idx_fea_C = np.logical_and(np.abs(self.pcd_new[:, 0] - Ccenter_x) < 0.02,
-                                       np.abs(self.pcd_new[:, 1] - Ccenter_y) < 0.02)
+            idx_fea_C = np.logical_and(np.abs(self.pcd_new[:, 0] - Ccenter_x) < 0.015,
+                                       np.abs(self.pcd_new[:, 1] - Ccenter_y) < 0.015)
             if np.shape(idx_fea_C)[0] > 10:
                 fea_Cx_new = self.pcd_new[idx_fea_C, 0].reshape((-1, 1))
                 fea_Cy_new = self.pcd_new[idx_fea_C, 1].reshape((-1, 1))
@@ -783,9 +787,9 @@ class pcd_opreator_system(object):
                 mean_Cx = Ccenter_x
                 mean_Cy = Ccenter_y
                 rand = np.random.rand(15).reshape((-1, 1))
-                fea_Cx_new = mean_Cx + rand * 0.001
+                fea_Cx_new = mean_Cx + rand * 0.0001
                 rand = np.random.rand(15).reshape((-1, 1))
-                fea_Cy_new = mean_Cy + rand * 0.001
+                fea_Cy_new = mean_Cy + rand * 0.0001
                 if _print_:
                     print("complete feature C:{},{}".format(Ccenter_x, Ccenter_y))
             self.Ccenter = np.array([Ccenter_x, Ccenter_y])
@@ -930,35 +934,35 @@ class pcd_opreator_system(object):
                 ax.plot(self.stair_low_x + p_pcd[0], self.stair_low_y + p_pcd[1], color='black', linewidth=2)
             if self.env_type == 1:
                 if self.is_fea_A_gotten:
-                    ax.scatter(self.fea_A[0:-1:5, 0] + p_pcd[0], self.fea_A[0:-1:5, 1] + p_pcd[1], color='m',
+                    ax.scatter(self.fea_A[0:-1:5, 0] + p_pcd[0], self.fea_A[0:-1:5, 1] + p_pcd[1], color='g',
                                linewidths=2)
                 if self.is_fea_B_gotten:
-                    ax.scatter(self.fea_B[0:-1:5, 0] + p_pcd[0], self.fea_B[0:-1:5, 1] + p_pcd[1], color='g',
+                    ax.scatter(self.fea_B[0:-1:5, 0] + p_pcd[0], self.fea_B[0:-1:5, 1] + p_pcd[1], color='y',
                                linewidths=2)
                 if self.is_fea_C_gotten:
-                    ax.scatter(self.fea_C[0:-1:5, 0] + p_pcd[0], self.fea_C[0:-1:5, 1] + p_pcd[1], color='y',
+                    ax.scatter(self.fea_C[0:-1:5, 0] + p_pcd[0], self.fea_C[0:-1:5, 1] + p_pcd[1], color='m',
                                linewidths=2)
-            elif self.env_type == 2:
-                if self.is_fea_D_gotten:
-                    ax.scatter(self.fea_D[0:-1:2, 0] + p_pcd[0], self.fea_D[0:-1:2, 1] + p_pcd[1], color='tab:purple',
-                               linewidths=2)
-                if self.is_fea_E_gotten:
-                    ax.scatter(self.fea_E[0:-1:2, 0] + p_pcd[0], self.fea_E[0:-1:2, 1] + p_pcd[1], color='tab:green',
-                               linewidths=2)
-                if self.is_fea_F_gotten:
-                    ax.scatter(self.fea_F[0:-1:2, 0] + p_pcd[0], self.fea_F[0:-1:2, 1] + p_pcd[1], color='tab:orange',
-                               linewidths=2)
-
-            elif self.env_type == 3:
-                if self.is_fea_B_gotten:
-                    ax.scatter(self.fea_B[0:-1:5, 0] + p_pcd[0], self.fea_B[0:-1:5, 1] + p_pcd[1], color='g',
-                               linewidths=1)
-                if self.is_fea_C_gotten:
-                    ax.scatter(self.fea_C[0:-1:5, 0] + p_pcd[0], self.fea_C[0:-1:5, 1] + p_pcd[1], color='y',
-                               linewidths=1)
-                if self.is_fea_D_gotten:
-                    ax.scatter(self.fea_D[0:-1:5, 0] + p_pcd[0], self.fea_D[0:-1:5, 1] + p_pcd[1], color='tab:pink',
-                               linewidths=1)
+            # elif self.env_type == 2:
+            #     if self.is_fea_D_gotten:
+            #         ax.scatter(self.fea_D[0:-1:2, 0] + p_pcd[0], self.fea_D[0:-1:2, 1] + p_pcd[1], color='tab:purple',
+            #                    linewidths=2)
+            #     if self.is_fea_E_gotten:
+            #         ax.scatter(self.fea_E[0:-1:2, 0] + p_pcd[0], self.fea_E[0:-1:2, 1] + p_pcd[1], color='tab:green',
+            #                    linewidths=2)
+            #     if self.is_fea_F_gotten:
+            #         ax.scatter(self.fea_F[0:-1:2, 0] + p_pcd[0], self.fea_F[0:-1:2, 1] + p_pcd[1], color='tab:orange',
+            #                    linewidths=2)
+            #
+            # elif self.env_type == 3:
+            #     if self.is_fea_B_gotten:
+            #         ax.scatter(self.fea_B[0:-1:5, 0] + p_pcd[0], self.fea_B[0:-1:5, 1] + p_pcd[1], color='y',
+            #                    linewidths=1)
+            #     if self.is_fea_C_gotten:
+            #         ax.scatter(self.fea_C[0:-1:5, 0] + p_pcd[0], self.fea_C[0:-1:5, 1] + p_pcd[1], color='m',
+            #                    linewidths=1)
+            #     if self.is_fea_D_gotten:
+            #         ax.scatter(self.fea_D[0:-1:5, 0] + p_pcd[0], self.fea_D[0:-1:5, 1] + p_pcd[1], color='tab:pink',
+            #                    linewidths=1)
             ax.set_xlim(-1, 1)
             ax.set_ylim(-1, 1)
             plt.text(p_text, -0.2, 'corner: {}'.format(self.corner_situation))

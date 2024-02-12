@@ -22,6 +22,5 @@ def bridge_handler(channel, data):
 
 def main():
     lcm_subscriber = lc_mid2high.subscribe("MIDDLE_TO_HIGH", bridge_handler)
-
     lc_high2mid.publish("HIGH_TO_MIDDLE", high2mid_msg.encode())
     lc_mid2high.handle()

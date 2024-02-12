@@ -20,11 +20,12 @@ use_statekf = True
 env = Environment()
 
 # 1 4 8 9 10 11 12 14
-experiment_idx = 4
+experiment_idx = 1
 file_path = "/media/yuxuan/My Passport/VIO_Experiment/vsMoca/{}/".format(experiment_idx)
 moca_data = np.load(file_path + "Moca{}_smooth.npy".format(experiment_idx))
 idx_stair = np.arange(2, 2 + 3 * 8)
 idx_cam = np.arange(26, 29)
+
 idx_knee = np.arange(29, 32)
 idx_ankle = np.arange(32, 35)
 idx_heel = np.arange(35, 38)

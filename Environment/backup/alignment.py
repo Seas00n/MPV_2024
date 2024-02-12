@@ -1,4 +1,4 @@
-
+import datetime
 # !/usr/bin/env python3
 
 
@@ -353,23 +353,27 @@ class icp_alignment(object):
         else:
             flag_out = 1
         fea_s, fea_t = self.get_fea(flag_out)
-
+        t0 = datetime.datetime.now()
         # plt.subplot(211)
         # plt.scatter(self.pcd_s[:,0],self.pcd_s[:,1])
-        # plt.scatter(fea_s[:, 0], fea_s[:, 1])
+        # plt.scatter(fea_s[:, 0], fea_s[:, 1], linewidths=5, color='g')
         # plt.subplot(212)
         # plt.scatter(self.pcd_t[:,0],self.pcd_t[:,1])
-        # plt.scatter(fea_t[:, 0], fea_t[:, 1])
+        # plt.scatter(fea_t[:, 0], fea_t[:, 1], linewidths=5, color='m')
         # plt.show()
 
         xmove, ymove = self.icp(fea_s, fea_t)
         if abs(xmove) > 0.1 or abs(ymove) > 0.1:
             fea_s, fea_t = self.get_fea(flag_out)
+            print(flag_out)
             xmove, ymove = self.icp(fea_s, fea_t)
         if abs(xmove) > 0.1 or abs(ymove) > 0.1:
             self.flag = 1 - self.flag
             fea_s, fea_t = self.get_fea(flag_out)
             xmove, ymove = self.icp(fea_s, fea_t)
+        t1 = datetime.datetime.now()
+        print("#=====FeatureAlignCCH:{}=====#".format(
+            (t1 - t0).total_seconds() * 1000))
         return xmove, ymove, self.flag
 
 

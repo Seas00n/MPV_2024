@@ -13,26 +13,10 @@ from Utils.Algo import *
 from sklearn.neighbors import NearestNeighbors
 from scipy import interpolate
 
-
-def pcd2d_to_3d(pcd_2d, num_rows=5):
-    num_points = np.shape(pcd_2d)[0]
-    pcd_3d = np.zeros((num_points * num_rows, 3))
-    pcd_3d[:, 1:] = np.repeat(pcd_2d, num_rows, axis=0)
-    x = np.linspace(-0.2, 0.2, num_rows).reshape((-1, 1))
-    xx = np.repeat(x, num_points, axis=1)
-    # weights_diag = np.diag(np.linspace(0.0001, -0.0001, num_rows))
-    weights_diag = np.diag(np.linspace(0, 0, num_rows))
-    idx = np.arange(num_points)
-    idx_m = np.repeat(idx.reshape((-1, 1)).T, num_rows, axis=0)
-    xx = xx + np.matmul(weights_diag, idx_m)
-    pcd_3d[:, 0] = np.reshape(xx.T, (-1,))
-    return pcd_3d
-
-
 class Env_Type(Enum):
     Levelground = 0
     Upstair = 1
-    DownStair = 2
+    Downstair = 2
     Upslope = 3
     Downslope = 4
     Obstacle = 5
