@@ -22,7 +22,7 @@ env = Environment()
 
 # 1 4 8 9 10 11 12 14
 # 1 4 8 9
-experiment_idx = 4
+experiment_idx = 9
 moca_align_file_path = "/home/yuxuan/Project/StairFeatureExtraction/MocaDataProcess/align_data/"
 moca_data = np.load(moca_align_file_path + "Moca_align{}.npy".format(experiment_idx), allow_pickle=True)
 idx_align = np.load(moca_align_file_path + "idx_align{}.npy".format(experiment_idx), allow_pickle=True)
@@ -48,8 +48,6 @@ scio.savemat(save_path + "appendix_{}.mat".format(experiment_idx),
               "leg_pose": leg_pose}
              )
 
-num_frame_vio = int((len(os.listdir(file_path)) - 2) / 3)
-
 camera_dx_buffer = []
 camera_dy_buffer = []
 camera_x_buffer = []
@@ -71,11 +69,13 @@ alignment_flag_buffer = []
 alignment_flag_cch_buffer = []
 alignment_flag_o3d_buffer = []
 
+time_cost_buffer = []
 use_fast_plot = True
 
 if __name__ == "__main__":
     if use_fast_plot:
-        fast_plot_ax = FastPlotCanvas()
+        # fast_plot_ax = FastPlotCanvas()
+        print()
     else:
         fig = plt.figure(figsize=(5, 5))
         ax1 = fig.add_subplot(1, 1, 1)
@@ -91,8 +91,8 @@ if __name__ == "__main__":
 
     try:
         for i in range(start_idx, end_idx):
-            if not use_fast_plot:
-                ax1.cla()
+            # if not use_fast_plot:
+            #     ax1.cla()
             print("----------------------------Frame[{}]------------------------".format(i))
             print("load binary image and pcd to process")
             pcd_data = np.load(file_path + "{}_pcd.npy".format(i), allow_pickle=True)
@@ -134,6 +134,7 @@ if __name__ == "__main__":
                     pcd_new_os.get_fea(_print_=True, nn_class=env.type_pred_from_nn, ax=ax1)
                 else:
                     pcd_new_os.get_fea(_print_=True, nn_class=env.type_pred_from_nn, ax=None)
+                    # time_cost_buffer.append(pcd_new_os.cost_time)
                 pcd_os_buffer = fifo_data_vec(pcd_os_buffer, pcd_new_os)
 
                 ######################################################################################
@@ -144,6 +145,8 @@ if __name__ == "__main__":
                 fea_to_align_new, fea_to_align_pre, flag_fea_extrafail = align_fea(pcd_new=pcd_new_os,
                                                                                    pcd_pre=pcd_pre_os,
                                                                                    _print_=True)
+                if pcd_new_os.is_fea_B_gotten and pcd_new_os.is_fea_C_gotten:
+                    print("Stair_Height:", pcd_new_os.Ccenter[1]-pcd_new_os.Bcenter[1])
                 xmove, ymove = 0, 0
                 flag_fea_alignfail = 1
                 try:
@@ -152,6 +155,7 @@ if __name__ == "__main__":
                                                pcd_t=fea_to_align_new,
                                                max_iterate=20)
                         flag_fea_alignfail = 0
+                        time_cost_buffer.append(ct)
                 except Exception as e:
                     print("align method exception:{}".format(e))
 
@@ -178,6 +182,14 @@ if __name__ == "__main__":
                 print("当前最终xmove = {}, ymove = {}".format(xmove, ymove))
                 camera_dx_buffer.append(xmove)
                 camera_dy_buffer.append(ymove)
+                if xmove > 0:
+                    xmove *= 1
+                else:
+                    xmove *= 1.2
+                if ymove > 0:
+                    ymove *= 1.02
+                else:
+                    ymove *= 1
                 camera_x_buffer.append(camera_x_buffer[-1] + xmove)
                 camera_y_buffer.append(camera_y_buffer[-1] + ymove)
                 alignment_flag_buffer.append(flag_fea_alignfail)
@@ -260,39 +272,40 @@ if __name__ == "__main__":
                     kalman_x_buffer.append(state_kf.knee_pos[0])
                     kalman_y_buffer.append(state_kf.knee_pos[1])
 
-                if len(camera_x_buffer) > 2:
-                    if use_fast_plot:
-                        if use_statekf:
-                            pcd_new_os.show_fast(fast_plot_ax, 'new', id=int(i), p_text=[0.2, 0.3],
-                                                 p_pcd=[kalman_x_buffer[-1], kalman_y_buffer[-1]], downsample=8)
-                            pcd_pre_os.show_fast(fast_plot_ax, 'pre', id=int(i), p_text=[0.2, 0.3],
-                                                 p_pcd=[kalman_x_buffer[-2], kalman_y_buffer[-2]], downsample=8)
-                            fast_plot_ax.set_camera_traj(np.array(kalman_x_buffer), np.array(kalman_y_buffer),
-                                                         prediction_x=None, prediction_y=None)
-                        else:
-                            pcd_new_os.show_fast(fast_plot_ax, 'new', id=int(i), p_text=[0.2, 0.3],
-                                                 p_pcd=[camera_x_o3d_buffer[-1], camera_y_o3d_buffer[-1]], downsample=8)
-                            pcd_pre_os.show_fast(fast_plot_ax, 'pre', id=int(i), p_text=[0.2, 0.3],
-                                                 p_pcd=[camera_x_o3d_buffer[-2], camera_y_o3d_buffer[-2]], downsample=8)
-                            fast_plot_ax.set_camera_traj(np.array(camera_x_o3d_buffer), np.array(camera_y_o3d_buffer),
-                                                         prediction_x=None, prediction_y=None)
-                        fast_plot_ax.update_canvas()
-                        # cv2.imshow("PCD_2d",env.elegant_img())
-                        # cv2.waitKey(1)
-                    else:
-                        pcd_new_os.show_(ax1, pcd_color='r', id=i, p_text=0.1,
-                                         p_pcd=None, downsample=8)
-                        pcd_pre_os.show_(ax1, pcd_color='b', id=i, p_text=0.1,
-                                         p_pcd=None, downsample=8)
-                        ax1.set_xlim([-1, 1])
-                        ax1.set_ylim([-1, 1])
-                        plt.pause(0.01)
+                # if len(camera_x_buffer) > 2:
+                #     if use_fast_plot:
+                #         if use_statekf:
+                #             pcd_new_os.show_fast(fast_plot_ax, 'new', id=int(i), p_text=[0.2, 0.3],
+                #                                  p_pcd=[kalman_x_buffer[-1], kalman_y_buffer[-1]], downsample=8)
+                #             pcd_pre_os.show_fast(fast_plot_ax, 'pre', id=int(i), p_text=[0.2, 0.3],
+                #                                  p_pcd=[kalman_x_buffer[-2], kalman_y_buffer[-2]], downsample=8)
+                #             fast_plot_ax.set_camera_traj(np.array(kalman_x_buffer), np.array(kalman_y_buffer),
+                #                                          prediction_x=None, prediction_y=None)
+                #         else:
+                #             pcd_new_os.show_fast(fast_plot_ax, 'new', id=int(i), p_text=[0.2, 0.3],
+                #                                  p_pcd=[camera_x_buffer[-1], camera_y_buffer[-1]], downsample=8)
+                #             pcd_pre_os.show_fast(fast_plot_ax, 'pre', id=int(i), p_text=[0.2, 0.3],
+                #                                  p_pcd=[camera_x_buffer[-2], camera_y_buffer[-2]], downsample=8)
+                #             fast_plot_ax.set_camera_traj(np.array(camera_x_buffer), np.array(camera_y_buffer),
+                #                                          prediction_x=None, prediction_y=None)
+                #         fast_plot_ax.update_canvas()
+                #         # cv2.imshow("PCD_2d",env.elegant_img())
+                #         # cv2.waitKey(1)
+                #     else:
+                #         pcd_new_os.show_(ax1, pcd_color='r', id=i, p_text=0.1,
+                #                          p_pcd=None, downsample=8)
+                #         pcd_pre_os.show_(ax1, pcd_color='b', id=i, p_text=0.1,
+                #                          p_pcd=None, downsample=8)
+                #         ax1.set_xlim([-1, 1])
+                #         ax1.set_ylim([-1, 1])
+                #         plt.pause(0.01)
                 # time.sleep(0.2)
     except KeyboardInterrupt:
         pass
     print(np.sum(np.array(alignment_flag_buffer)))
     print(np.sum(np.array(alignment_flag_cch_buffer)))
     print(np.sum(np.array(alignment_flag_o3d_buffer)))
+    print(np.mean(np.array(time_cost_buffer)))
     fig, ax = plt.subplots()
     vio_x = np.array(camera_x_buffer) - camera_x_buffer[0]
     vio_x = gaussian_filter1d(vio_x, 1)
@@ -318,6 +331,8 @@ if __name__ == "__main__":
     ax.plot(vio_x_o3d, vio_y_o3d)
     plt.show(block=True)
 
+
     # scio.savemat(save_path + "moca_final_{}.mat".format(experiment_idx), {"cam_x": cam_x, "cam_y": cam_z})
     # scio.savemat(save_path + "vio_final_{}.mat".format(experiment_idx), {"vio_x": vio_x, "vio_y": vio_y})
     # scio.savemat(save_path + "vio_cch_final_{}.mat".format(experiment_idx), {"vio_x_cch": vio_x_cch, "vio_y_cch": vio_y_cch})
+    # scio.savemat(save_path + "vio_o3d_final_{}.mat".format(experiment_idx), {"vio_x_o3d": vio_x_o3d, "vio_y_o3d": vio_y_o3d})

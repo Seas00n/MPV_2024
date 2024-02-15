@@ -42,7 +42,6 @@ class pcd_opreator_system(object):
         self.env_type = 1
         if _print_:
             print("Env_Type:{}".format(self.env_type))
-            plt.text(0, 0.1, "Env_Type:{}".format(self.env_type))
         if self.env_type == 1:
             self.get_fea_sa(_print_=_print_, ax=ax, idx=idx)
             self.fea_extra_over = True
@@ -181,7 +180,7 @@ class pcd_opreator_system(object):
 
         if line1_success:
             self.num_line = 1
-            x1, y1, mean_line1, idx1 = self.line_ground_calibrate(idx1)
+            # x1, y1, mean_line1, idx1 = self.line_ground_calibrate(idx1)
         else:
             self.num_line = 0
             return
@@ -193,7 +192,7 @@ class pcd_opreator_system(object):
         mean_line2 = 0
         if line1_success:
             x2, y2, mean_line2, idx2, line2_success = self.ransac_process_2(idx1_new, th_ransac_k=0.12, th_length=0.1,
-                                                                            th_interval=0.05, _print_=_print_)
+                                                                            th_interval=0.05, _print_=_print_, ax=ax)
             if line2_success:
                 self.num_line = 2
             else:
@@ -324,7 +323,7 @@ class pcd_opreator_system(object):
         mean_line2 = 0
         if line1_success:
             x2, y2, mean_line2, idx2, line2_success = self.ransac_process_2(idx1, th_ransac_k=0.12, th_length=0.02,
-                                                                            th_interval=0.05, _print_=_print_)
+                                                                            th_interval=0.1, _print_=_print_, ax=ax)
             if line2_success:
                 self.num_line = 2
             else:
@@ -489,7 +488,7 @@ class pcd_opreator_system(object):
                 diff_up_right = np.diff(up_right_part, axis=0)
                 idx_continuous = np.where(np.abs(diff_up_right[:, 0]) < 0.005)[0]
                 right_part_continuous = up_right_part[idx_continuous]
-                if np.shape(right_part_continuous)[0] > 10 and np.max(right_part_continuous) - np.max(stair_high_x) > 0.02:
+                if np.shape(right_part_continuous)[0] > 10 and np.max(right_part_continuous) - np.max(stair_high_x) > 0.04:
                     self.has_part_right_line = True
                     # 由于步骤比较繁琐这里直接存储right_part_continuous
                     self.pcd_right_up_part_sa = right_part_continuous
@@ -590,7 +589,7 @@ class pcd_opreator_system(object):
         try:
             inlier_mask1, outlier_mask1, line_y_ransac1, line_X1, theta_line1 = RANSAC(X0, Y0, th_ransac_k)
             mean_line1 = np.nanmean(Y0[inlier_mask1])
-            idx_x1_in_X0 = np.where(abs(Y0 - mean_line1) < 0.01)[0]
+            idx_x1_in_X0 = np.where(abs(Y0 - mean_line1) < 0.015)[0]
             x1 = X0[idx_x1_in_X0, :]
             y1 = Y0[idx_x1_in_X0, :]
             line1_length = np.max(x1) - np.min(x1)
@@ -614,7 +613,7 @@ class pcd_opreator_system(object):
                 idx_Xtemp_in_X0 = np.delete(idx_X0_in_X0, idx_x1_in_X0)
                 inlier_mask1, outlier_mask1, line_y_ransac1, line_X1, theta_line1 = RANSAC(X_temp, Y_temp, th_ransac_k)
                 mean_line1 = mean_line_temp = np.nanmean(Y_temp[inlier_mask1])
-                idx_x1_in_Xtemp = np.where(abs(Y_temp - mean_line_temp) < 0.01)[0]
+                idx_x1_in_Xtemp = np.where(abs(Y_temp - mean_line_temp) < 0.015)[0]
                 idx_x1_in_X0 = idx_Xtemp_in_X0[idx_x1_in_Xtemp]
                 x1 = X0[idx_x1_in_X0, :]
                 y1 = Y0[idx_x1_in_X0, :]
@@ -643,7 +642,7 @@ class pcd_opreator_system(object):
             stop = 1
         return x1, y1, mean_line1, idx_x1_in_X0, line1_success
 
-    def ransac_process_2(self, idx1, th_ransac_k=0.1, th_length=0.1, th_interval=0.1, _print_=False):
+    def ransac_process_2(self, idx1, th_ransac_k=0.1, th_length=0.1, th_interval=0.1, _print_=False, ax=None):
         x2 = []
         y2 = []
         mean_line2 = 0
@@ -657,10 +656,12 @@ class pcd_opreator_system(object):
         idx_x1_in_X0 = idx1
         idx_X1_in_X0 = np.delete(idx_all, idx_x1_in_X0)
         idx_x2_in_X0 = np.zeros((0,))
+        if ax is not None:
+            ax.scatter(X1[0:-1:8],Y1[0:-1:8]+0.4, color='r', alpha=0.1)
         try:
             inlier_mask2, outlier_mask2, line_y_ransac2, line_X2, theta_line2 = RANSAC(X1, Y1, th_ransac_k)
             mean_line2 = np.nanmean(Y1[inlier_mask2])
-            idx_x2_in_X1 = np.where(abs(Y1 - mean_line2) < 0.01)[0]
+            idx_x2_in_X1 = np.where(abs(Y1 - mean_line2) < 0.015)[0]
             idx_x2_in_X0 = idx_X1_in_X0[idx_x2_in_X1]
             x2 = X0[idx_x2_in_X0, :]
             y2 = Y0[idx_x2_in_X0, :]
@@ -678,7 +679,7 @@ class pcd_opreator_system(object):
                 idx_Xtemp_in_X0 = np.delete(idx_X1_in_X0, idx_x2_in_X0)
                 inlier_mask2, outlier_mask2, line_y_ransac2, line_X2, theta_line2 = RANSAC(X_temp, Y_temp, th_ransac_k)
                 mean_line2 = mean_line_temp = np.nanmean(Y_temp[inlier_mask2])
-                idx_x2_in_Xtemp = np.where(abs(Y_temp - mean_line_temp) < 0.01)[0]
+                idx_x2_in_Xtemp = np.where(abs(Y_temp - mean_line_temp) < 0.015)[0]
                 idx_x2_in_X0 = idx_Xtemp_in_X0[idx_x2_in_Xtemp]
                 x2 = X0[idx_x2_in_X0, :]
                 y2 = Y0[idx_x2_in_X0, :]
@@ -708,8 +709,8 @@ class pcd_opreator_system(object):
                 print('A feature finding')
             Acenter_x = np.min(self.stair_low_x)
             Acenter_y = self.stair_low_y[np.argmin(self.stair_low_x)][0]
-            idx_fea_A = np.logical_and(np.abs(self.pcd_new[:, 0] - Acenter_x) < 0.015,
-                                       np.abs(self.pcd_new[:, 1] - Acenter_y) < 0.015)
+            idx_fea_A = np.logical_and(np.abs(self.pcd_new[:, 0] - Acenter_x) < 0.005,
+                                       np.abs(self.pcd_new[:, 1] - Acenter_y) < 0.005)
             if np.shape(self.pcd_new[idx_fea_A, 0])[0] > 10:
                 fea_Ax_new = self.pcd_new[idx_fea_A, 0].reshape((-1, 1))
                 fea_Ay_new = self.pcd_new[idx_fea_A, 1].reshape((-1, 1))
@@ -738,8 +739,8 @@ class pcd_opreator_system(object):
             # Bcenter_x = stair_low_right_corner_x = np.min(self.stair_high_x)
             Bcenter_y = stair_low_right_corner_y = np.nanmean(self.stair_low_y)
             # Bcenter_y = stair_low_right_corner_y = self.stair_low_y[np.argmax(self.stair_low_x)][0]
-            idx_fea_B = np.logical_and(np.abs(self.pcd_new[:, 0] - stair_low_right_corner_x) < 0.015,
-                                       np.abs(self.pcd_new[:, 1] - stair_low_right_corner_y) < 0.015)
+            idx_fea_B = np.logical_and(np.abs(self.pcd_new[:, 0] - stair_low_right_corner_x) < 0.005,
+                                       np.abs(self.pcd_new[:, 1] - stair_low_right_corner_y) < 0.005)
             if np.shape(idx_fea_B)[0] > 10:
                 fea_Bx_new = self.pcd_new[idx_fea_B, 0].reshape((-1, 1))
                 fea_By_new = self.pcd_new[idx_fea_B, 1].reshape((-1, 1))
@@ -776,8 +777,8 @@ class pcd_opreator_system(object):
                 # Ccenter_y = self.stair_high_y[np.argmin(self.stair_high_x)][0]
                 Ccenter_y = np.nanmean(self.stair_high_y)
 
-            idx_fea_C = np.logical_and(np.abs(self.pcd_new[:, 0] - Ccenter_x) < 0.015,
-                                       np.abs(self.pcd_new[:, 1] - Ccenter_y) < 0.015)
+            idx_fea_C = np.logical_and(np.abs(self.pcd_new[:, 0] - Ccenter_x) < 0.01,
+                                       np.abs(self.pcd_new[:, 1] - Ccenter_y) < 0.01)
             if np.shape(idx_fea_C)[0] > 10:
                 fea_Cx_new = self.pcd_new[idx_fea_C, 0].reshape((-1, 1))
                 fea_Cy_new = self.pcd_new[idx_fea_C, 1].reshape((-1, 1))
@@ -923,10 +924,11 @@ class pcd_opreator_system(object):
         ax.scatter(self.pcd_new[0:-1:downsample, 0] + p_pcd[0],
                    self.pcd_new[0:-1:downsample, 1] + p_pcd[1], color=pcd_color,
                    alpha=0.1)
+        plt.text(p_text, 0.1, "Env_Type:{}".format(self.env_type))
         plt.text(p_text, -0.1, 'id: {}'.format(id))
         if self.fea_extra_over:
-            plt.text(p_text, 0.5, 'theta: {}'.format(round(self.env_rotate, 2)))
-            plt.text(p_text, -0.3, "time cost:{}ms".format(round(1000 * self.cost_time, 2)))
+            # plt.text(p_text, 0.5, 'theta: {}'.format(round(self.env_rotate, 2)))
+            # plt.text(p_text, -0.3, "time cost:{}ms".format(round(1000 * self.cost_time, 2)))
             if self.num_line == 2:
                 ax.plot(self.stair_low_x + p_pcd[0], self.stair_low_y + p_pcd[1], color='black', linewidth=2)
                 ax.plot(self.stair_high_x + p_pcd[0], self.stair_high_y + p_pcd[1], color='tab:gray', linewidth=2)

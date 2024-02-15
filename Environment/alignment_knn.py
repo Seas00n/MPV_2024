@@ -80,15 +80,6 @@ def align_fea(pcd_new: pcd_opreator_system,
                 print("fea_A and fea_A")
             fea_component_new[0] = fea_len
             fea_component_pre[0] = fea_len
-        if (pcd_new.is_fea_B_gotten and pcd_pre.is_fea_B_gotten) and (
-                abs(pcd_new.Bcenter[0] - pcd_pre.Bcenter[0]) < 0.1):
-            fea_len = min(np.shape(pcd_new.fea_B)[0], np.shape(pcd_pre.fea_B)[0])
-            pcd_to_align_new = np.vstack([pcd_to_align_new, pcd_new.fea_B[0:fea_len, :]])
-            pcd_to_align_pre = np.vstack([pcd_to_align_pre, pcd_pre.fea_B[0:fea_len, :]])
-            if _print_:
-                print("fea_B and fea_B")
-            fea_component_new[1] = fea_len
-            fea_component_pre[1] = fea_len
         if (pcd_new.is_fea_C_gotten and pcd_pre.is_fea_C_gotten) and (
                 abs(pcd_new.Ccenter[0] - pcd_pre.Ccenter[0]) < 0.1):
             fea_len = min(np.shape(pcd_new.fea_C)[0], np.shape(pcd_pre.fea_C)[0])
@@ -98,6 +89,18 @@ def align_fea(pcd_new: pcd_opreator_system,
                 print("fea_C and fea_C")
             fea_component_new[2] = fea_len
             fea_component_pre[2] = fea_len
+        if (pcd_new.is_fea_B_gotten and pcd_pre.is_fea_B_gotten) and (
+                abs(pcd_new.Bcenter[0] - pcd_pre.Bcenter[0]) < 0.1) and(
+            fea_component_new[0] == 0 and fea_component_pre[0] == 0 and
+            fea_component_new[2] == 0 and fea_component_pre[2] == 0
+        ):
+            fea_len = min(np.shape(pcd_new.fea_B)[0], np.shape(pcd_pre.fea_B)[0])
+            pcd_to_align_new = np.vstack([pcd_to_align_new, pcd_new.fea_B[0:fea_len, :]])
+            pcd_to_align_pre = np.vstack([pcd_to_align_pre, pcd_pre.fea_B[0:fea_len, :]])
+            if _print_:
+                print("fea_B and fea_B")
+            fea_component_new[1] = fea_len
+            fea_component_pre[1] = fea_len
         if pcd_new.is_fea_D_gotten and pcd_pre.is_fea_D_gotten:
             fea_len = min(np.shape(pcd_new.fea_D)[0], np.shape(pcd_pre.fea_D)[0])
             pcd_to_align_new = np.vstack([pcd_to_align_new, pcd_new.fea_D[0:fea_len, :]])
@@ -184,6 +187,7 @@ def icp_knn(pcd_s, pcd_t, max_iterate=20):
         if (is_converge(dist_x, dist_y, scale)):
             break
     t1 = datetime.datetime.now()
+    # dt = (t1 - t0).total_seconds() * 1000
     print("#=====FeatureAlign:{}=====#".format(
         (t1 - t0).total_seconds() * 1000))
     return xmove, ymove

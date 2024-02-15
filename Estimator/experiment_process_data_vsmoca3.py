@@ -8,7 +8,7 @@ import scipy.io as scio
 
 use_fast_plot = False
 use_statekf = False
-time_debug = False
+time_debug = True
 sys.path.append("//")
 from Environment.Environment import *
 from Environment.feature_extra_new import *
@@ -20,42 +20,38 @@ from Utils.pcd_os_fast_plot import *
 from Environment.backup.alignment import *
 from Environment.alignment_open3d import *
 
-
 env = Environment()
 
-# 2,3,7,8,9,12,14,16,19,20
-experiment_idx = 9
-moca_align_file_path = "/media/yuxuan/My Passport/数据/prosthesis_SA/"
-moca_data = np.load(moca_align_file_path + "moca/Moca_align{}.npy".format(experiment_idx), allow_pickle=True)
-idx_align = np.load(moca_align_file_path + "idx/idx_align{}.npy".format(experiment_idx), allow_pickle=True)
-idx_stair = np.arange(2, 2 + 3 * 8)
-idx_cam = np.arange(26, 29)
-idx_ankle = np.arange(29, 32)
-idx_heel = np.arange(32, 35)
-idx_toe = np.arange(35, 38)
-idx_time = 1
-moca_time = moca_data[:, idx_time]
+# 1,2,3,4,5
+# 1
+# 2 80:n-160
+# 3 70:n-350
+# 4 90:n-290
+experiment_idx = 1
+moca_align_file_path = "/media/yuxuan/My Passport/数据/wood_stair/{}/".format(experiment_idx)
+moca_data = np.load(moca_align_file_path + "cap.npy".format(experiment_idx), allow_pickle=True)
+idx_cam = 0
+idx_stair = [3, 4]
 
 # idx_align = [0, 0]
-file_path = "/media/yuxuan/My Passport/数据/prosthesis_SA/pcd/{}/".format(experiment_idx)
-save_path = "/media/yuxuan/My Passport/VIO_Experiment/Result3/"
-pcd_list = os.listdir(file_path)
-pcd_list.sort(key=lambda x:float(x.split("_pcd.npy")[0]))
+file_path = "/media/yuxuan/My Passport/数据/wood_stair/{}/".format(experiment_idx)
+save_path = "/media/yuxuan/My Passport/VIO_Experiment/Result4/"
+pcd_list = scio.loadmat(file_path + "pcd.mat")["pcd_data_new"][0, :]
+time_list = np.load(file_path + "time.npy", allow_pickle=True)
 
-cam_origin = moca_data[0, idx_cam]
-stair = np.mean(moca_data[:, idx_stair], axis=0)
-stairs_x = stair[0::3]
-stairs_z = stair[2::3]
-leg_pose = moca_data[:, idx_cam[0]:]
+cam_origin = moca_data[0, :, idx_cam]
+stair = np.mean(moca_data[:, :, idx_stair], axis=0)
+stairs_x = stair[0, :]
+stairs_z = stair[2, :]
+leg_pose = moca_data[:, :, idx_cam:idx_stair[0]]
 scio.savemat(save_path + "appendix_{}.mat".format(experiment_idx),
              {"cam_origin": cam_origin,
               "stair_x": stairs_x,
               "stair_z": stairs_z,
-              "leg_pose": leg_pose,
-              "idx_align":idx_align}
+              "leg_pose": leg_pose}
              )
 
-num_frame_vio = int((len(os.listdir(file_path)) - 2) / 3)
+num_frame_vio = np.shape(time_list)[0]
 
 camera_dx_buffer = []
 camera_dy_buffer = []
@@ -79,6 +75,14 @@ alignment_flag_buffer = []
 alignment_flag_cch_buffer = []
 alignment_flag_o3d_buffer = []
 
+start_idx = 90
+end_idx = num_frame_vio-290
+cam_moca = moca_data[80:num_frame_vio-160, :, idx_cam]
+cam_moca = (cam_moca - cam_moca[0, :])
+cam_x = cam_moca[:, 0]
+cam_x = gaussian_filter1d(cam_x, 1)
+cam_z = cam_moca[:, 2]
+cam_z = gaussian_filter1d(cam_z, 1)
 
 if __name__ == "__main__":
     if use_fast_plot:
@@ -91,8 +95,7 @@ if __name__ == "__main__":
     align_fail_time = 0
     align_fail_time_cch = 0
     alignment_fail_time_o3d = 0
-    start_idx = idx_align[1]
-    end_idx = idx_align[3]
+
     if use_statekf:
         state_kf = StateKalmanFilter()
 
@@ -102,10 +105,10 @@ if __name__ == "__main__":
                 ax1.cla()
             print("----------------------------Frame[{}]------------------------".format(i))
             print("load binary image and pcd to process")
-            pcd_data = np.load(file_path + pcd_list[i-30], allow_pickle=True)
+            pcd_data = pcd_list[i]
             env.pcd_2d = pcd_data
             env.thin()
-            time_data = moca_time[i-start_idx]
+            time_data = time_list[i]
 
             if i == start_idx:
                 camera_dx_buffer.append(0)
@@ -137,8 +140,6 @@ if __name__ == "__main__":
                 env.classification_from_img()
 
                 if not use_fast_plot:
-                    if i == 133:
-                        print()
                     pcd_new_os.get_fea(_print_=True, nn_class=env.type_pred_from_nn, ax=ax1)
                 else:
                     pcd_new_os.get_fea(_print_=True, nn_class=env.type_pred_from_nn, ax=None)
@@ -153,10 +154,10 @@ if __name__ == "__main__":
                                                                                    pcd_pre=pcd_pre_os,
                                                                                    _print_=True)
                 if pcd_new_os.is_fea_B_gotten and pcd_new_os.is_fea_C_gotten:
-                    print("Stair_Height:", pcd_new_os.Ccenter[1]-pcd_new_os.Bcenter[1])
-                    print("Z-ratio:",(pcd_new_os.Ccenter[1]-pcd_new_os.Bcenter[1])/0.113)
+                    print("Stair_Height:", pcd_new_os.Ccenter[1] - pcd_new_os.Bcenter[1])
+                    print("Z-ratio:", (pcd_new_os.Ccenter[1] - pcd_new_os.Bcenter[1]) / 0.113)
                 if pcd_new_os.is_fea_C_gotten and pcd_pre_os.is_fea_C_gotten:
-                    print("Print dy:", pcd_new_os.Ccenter[1]-pcd_pre_os.Ccenter[1])
+                    print("Print dy:", pcd_new_os.Ccenter[1] - pcd_pre_os.Ccenter[1])
                 xmove, ymove = 0, 0
                 flag_fea_alignfail = 1
                 try:
@@ -192,14 +193,14 @@ if __name__ == "__main__":
                 camera_dx_buffer.append(xmove)
                 camera_dy_buffer.append(ymove)
                 if xmove > 0:
-                    xmove *= 1.03
+                    xmove *= 0.95
                 else:
-                    xmove *= 1.12
+                    xmove *= 1.0
                 camera_x_buffer.append(camera_x_buffer[-1] + xmove)
                 if ymove > 0:
-                    ymove *= 0.85
+                    ymove *= 0.95
                 else:
-                    ymove *= 0.63
+                    ymove *= 0.95
                 camera_y_buffer.append(camera_y_buffer[-1] + ymove)
                 alignment_flag_buffer.append(flag_fea_alignfail)
                 ##########################################################################################
@@ -236,11 +237,11 @@ if __name__ == "__main__":
                 camera_dx_cch_buffer.append(xmove_cch)
                 camera_dy_cch_buffer.append(ymove_cch)
                 if xmove_cch > 0:
-                    xmove_cch *= 1.1
+                    xmove_cch *= 1
                 if ymove_cch > 0:
-                    ymove_cch *= 0.9
+                    ymove_cch *= 1
                 else:
-                    ymove_cch *= 0.6
+                    ymove_cch *= 1
                 camera_x_cch_buffer.append(camera_x_cch_buffer[-1] + xmove_cch)
                 camera_y_cch_buffer.append(camera_y_cch_buffer[-1] + ymove_cch)
                 alignment_flag_cch_buffer.append(flag_fea_alignfail_cch)
@@ -249,8 +250,8 @@ if __name__ == "__main__":
                                          pcd_t=pcd_new_os.pcd_new)
                 trans, dt = regis.alignment_new()
                 time_cost_buffer.append(dt)
-                xmove_o3d = -trans[1, 3]*1.4
-                ymove_o3d = -trans[2, 3]*1.2
+                xmove_o3d = -trans[1, 3] * 1.4
+                ymove_o3d = -trans[2, 3] * 1.2
                 flag_fea_alignfail_o3d = 0
                 if abs(xmove_o3d) > 0.05 or abs(ymove_o3d) > 0.05 or dt > 0.2:  # 0.1 0.22
                     print("xmove_o3d = {}, ymove_o3d = {}".format(xmove_o3d, ymove_o3d))
@@ -265,7 +266,8 @@ if __name__ == "__main__":
                             ymove_pre_o3d = camera_dy_o3d_buffer[-1]
                             xmove_o3d = xmove_pre_o3d  # 0
                             ymove_o3d = ymove_pre_o3d  # 0
-                            print("对齐失败，使用上一次的xmove_pre_o3d = {},ymove_pre_o3d = {}".format(xmove_pre_o3d, ymove_pre_o3d))
+                            print("对齐失败，使用上一次的xmove_pre_o3d = {},ymove_pre_o3d = {}".format(xmove_pre_o3d,
+                                                                                                      ymove_pre_o3d))
                     else:
                         xmove_o3d, ymove_o3d = 0, 0
                         print("对齐失败，xmove, ymove = 0")
@@ -311,13 +313,11 @@ if __name__ == "__main__":
                         pcd_new_os.show_(ax1, pcd_color='r', id=i, p_text=-0.4,
                                          p_pcd=None, downsample=8)
                         pcd_pre_os.show_(ax1, pcd_color='b', id=i, p_text=-0.4,
-                                         p_pcd=[0, -0.2], downsample=8)
+                                         p_pcd=[0, -0.4], downsample=8)
                         ax1.plot(np.array(camera_x_buffer), np.array(camera_y_buffer))
-                        moca_x = 0.001 * (moca_data[:, idx_cam[0]] - moca_data[0, idx_cam[0]])
-                        moca_y = 0.001 * (moca_data[:, idx_cam[2]] - moca_data[0, idx_cam[2]])
-                        ax1.plot(moca_x, moca_y)
-                        ax1.set_xlim([-1, 1])
-                        ax1.set_ylim([-1, 1])
+                        ax1.plot(cam_x, cam_z)
+                        ax1.set_xlim([-1, 1.2])
+                        ax1.set_ylim([-1, 1.2])
                         plt.pause(0.01)
                 if alignment_flag_buffer[-1] == 1:
                     print()
@@ -340,12 +340,7 @@ if __name__ == "__main__":
     vio_y_cch = np.array(camera_y_cch_buffer) - camera_y_cch_buffer[0]
     vio_y_cch = gaussian_filter1d(vio_y_cch, 1)
     ax.plot(vio_x_cch, vio_y_cch)
-    cam_moca = moca_data[:, idx_cam]
-    cam_moca = (cam_moca - cam_moca[0, :])*0.001
-    cam_x = cam_moca[:, 0]
-    cam_x = gaussian_filter1d(cam_x, 1)
-    cam_z = cam_moca[:, 2]
-    cam_z = gaussian_filter1d(cam_z, 1)
+
     ax.plot(cam_x, cam_z)
     # vio_x_o3d = np.array(camera_x_o3d_buffer) - camera_x_o3d_buffer[0]
     # vio_x_o3d = gaussian_filter1d(vio_x_o3d, 1)
@@ -354,6 +349,6 @@ if __name__ == "__main__":
     # ax.plot(vio_x_o3d, vio_y_o3d)
     plt.show(block=True)
 
-    # scio.savemat(save_path + "moca_final_{}.mat".format(experiment_idx), {"cam_x": cam_x, "cam_y": cam_z})
-    # scio.savemat(save_path + "vio_final_{}.mat".format(experiment_idx), {"vio_x": vio_x, "vio_y": vio_y})
-    # scio.savemat(save_path + "vio_cch_final_{}.mat".format(experiment_idx), {"vio_x_cch": vio_x_cch, "vio_y_cch": vio_y_cch})
+    scio.savemat(save_path + "moca_final_{}.mat".format(experiment_idx), {"cam_x": cam_x, "cam_y": cam_z})
+    scio.savemat(save_path + "vio_final_{}.mat".format(experiment_idx), {"vio_x": vio_x, "vio_y": vio_y})
+    scio.savemat(save_path + "vio_cch_final_{}.mat".format(experiment_idx), {"vio_x_cch": vio_x_cch, "vio_y_cch": vio_y_cch})

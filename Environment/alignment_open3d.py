@@ -50,9 +50,10 @@ class open3d_alignment(object):
         )
         print("Fitness:{},RMSE:{}".format(reg.fitness, reg.inlier_rmse))
         t1 = datetime.datetime.now()
+        dt = (t1-t0).total_seconds()*1000
         print("#=====FeatureAlignO3d:{}=====#".format(
             (t1 - t0).total_seconds() * 1000))
-        return reg.transformation
+        return reg.transformation, dt
 
     def alignment(self, transformation=None):
         if transformation is None:
